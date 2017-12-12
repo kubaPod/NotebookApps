@@ -24,6 +24,8 @@ BeginPackage["NotebookApps`"];
 
   AppNotebook;
 
+  GetInjected;
+
   CreateSessionPreview;
   
   NotebookLayouts;
@@ -34,24 +36,38 @@ BeginPackage["NotebookApps`"];
 
 Begin["`Private`"];
 
-$NotebookAppsSourcePath = $InputFileName /. "" :> NotebookDirectory[];
-
 
 (* ::Section:: *)
 (*Apps*)
 
 
-AppNotebook[spec_]:=Notebook[
-    { Cell[ BoxData @ ToBoxes @ AppLoadingPanel[spec] ] }
+(* ::Subsection:: *)
+(*NewApp*)
+
+
+NewApp[]:= NewApp @ SystemDialogInput["Directory"]
+
+
+(* ::Subsection:: *)
+(*AppNotebook*)
+
+
+AppNotebook // Options = {
+  "name" -> "",
+  "loading" :> Automatic
+};
+
+AppNotebook[options:OptionsPattern[]]:=Notebook[
+    { Cell[ BoxData @ ToBoxes @ AppLoadingPanel[options] ] }
     
   , CacheGraphics          -> False  
-  
+  , Background             -> GrayLevel@.95
   , CellContext            -> Notebook      
   , CellMargins            -> 0 {{1, 1}, {1, 1}}
   , CellFrameMargins       -> 0   
   
-  , WindowSize             -> 800 {1, 1/GoldenRatio}
-  , WindowTitle            -> spec["name"]
+  , WindowSize             -> All(*800 {1, 1/GoldenRatio}*)
+  , WindowTitle            -> OptionValue["name"]
   , WindowFrameElements    -> All
   , WindowElements         -> {"StatusArea", "MagnificationPopUp"}
   
@@ -62,14 +78,16 @@ AppNotebook[spec_]:=Notebook[
   ];
 
 
-AppLoadingPanel[spec_]:=With[
+AppLoadingPanel // Options = Options @ AppNotebook;
+
+AppLoadingPanel[options:OptionsPattern[]]:=With[
   { failedLoadSign = Style["\[WarningSign]",Blend[{Red,Orange}],80]  
-  , source = Import[#, "Text"]& /@ Lookup[spec, {"sessionSource", "methodsSource"}, Nothing]
+  , loading = PopulateLoading @ OptionValue[Automatic,Automatic, "loading", Hold]
   }
 , DynamicModule[{ loaded = False, loadFailed = False }
     , Dynamic[
         Which[ 
-          Not @ TrueQ @ loaded, ProgressIndicator[Appearance->"Necklace",ImageSize->300]
+          Not @ TrueQ @ loaded, Pane[ProgressIndicator[Appearance->"Necklace",ImageSize->300], ImageSize->800{1,1/GoldenRatio},Alignment->{Center,Center}]
         , TrueQ @ loadFailed, failedLoadSign
         , True, $CellContext`AppNotebook`AppPanel[]
         ]
@@ -80,16 +98,29 @@ AppLoadingPanel[spec_]:=With[
     , Initialization :> (
         loaded = False
       ; Pause[.1] 
-      ; Check[ (*loading procedure*)
-          Needs["PacletManager`"]
-        ; Module[{s}, s = StringToStream[#];Get[s];Close[s]]& /@ source  
-        ; $CellContext`AppNotebook`AppInitialization[]
-        , loadFailed = True 
-        ]
+      ; Check[ ReleaseHold @ loading, loadFailed = True ]
       ; loaded = True  
+      ; SetOptions[EvaluationNotebook[], WindowSize -> 800 {1, 1/GoldenRatio}]
       )         
     ]
+];
+
+
+PopulateLoading[loadingProcedure_Hold]:= ReplaceAll[
+  loadingProcedure
+, { GetInjected["NotebookApp`"] :> With[
+      { content = Compress @ Import[ FindFile @ "NotebookApps`", "Text"]}
+    , Module[{stream}, stream=StringToStream @ Uncompress @ content; Get @ stream; Close @ stream] /; True
+    ]
+  , GetInjected[path_String] :> With[
+      { content = Compress @ Import[ path, "Text"]}
+    , Module[{stream}, stream=StringToStream @ Uncompress @ content; Get @ stream; Close @ stream] /; True
+    ]  
+  }
+
 ]
+
+
 
 
 (* ::Section::Closed:: *)
@@ -171,7 +202,7 @@ BookmarkSessionLoad[]:= Module[{file}
 ];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*NotebookLayouts*)
 
 
@@ -180,41 +211,54 @@ NotebookLayouts["Basic"]:= basicLayout;
 withNotebookMagnification = Style[#, Magnification-> FrontEnd`AbsoluteCurrentValue[EvaluationNotebook[], Magnification]]&;
 
 basicLayout[header_, main_, settings_, OptionsPattern[]]:=With[
-  { panelMargin = 8
-  , headerH = 50
-  , notebookFrameWidths = {2,10}
+  { spacerSize = 10
+  , headerH = 70
+  , notebookFrameWidths = {4, 25}
   , pixelColumnsOfUnkownOrigin = 3
   }
-, DynamicModule[{ cellContentSize, settSize={200,All}, mainSize}
-, Grid[
-    { { Framed @ Pane[withNotebookMagnification @ header, ImageSize->Dynamic[{cellContentSize[[1]],headerH}]]
-      , SpanFromLeft
-      }
-    , { Framed @ Pane[withNotebookMagnification @ main
-        , ImageSize->Dynamic[mainSize, (mainSize[[1]]=#[[1]];settSize[[1]]=cellContentSize[[1]]-#[[1]]-2panelMargin-pixelColumnsOfUnkownOrigin)&]
-        , AppearanceElements->"ResizeArea"
-        ]
-      , Framed @ Pane[withNotebookMagnification @ settings, Dynamic[settSize], Scrollbars->True, AppearanceElements->None]
-      }
-    , { Dynamic[
-          cellContentSize = AbsoluteCurrentValue[EvaluationNotebook[],WindowSize]-notebookFrameWidths-2panelMargin
-        ; mainSize=cellContentSize-{settSize[[1]],headerH}-2panelMargin-pixelColumnsOfUnkownOrigin
-        ; settSize[[2]]=mainSize[[2]]
-        ; Spacer[0]
-        , TrackedSymbols:>{}]
-      }
-    }
-  , Spacings->{0,0}
-  , Alignment->{Left,Top}
-  ]
+, DynamicModule[{ cellContentSize, settSize={200,All}, mainSize}, Module[{$spacerItem, $sizeListener,$headerItem,$mainItem,$settingsItem }
+  , $spacerItem = Spacer[spacerSize {1,1}]
+  ; $sizeListener = With[{spacer = $spacerItem}
+    , Dynamic[
+        cellContentSize = AbsoluteCurrentValue[EvaluationNotebook[],WindowSize] - notebookFrameWidths - 2 spacerSize
+      ; mainSize = cellContentSize - {settSize[[1]], headerH} -  spacerSize - pixelColumnsOfUnkownOrigin
+      ; settSize[[2]]=mainSize[[2]]
+      ; spacer
+      , TrackedSymbols:>{}
+      ]
+    ]
+  ; $headerItem = Framed @ Pane[withNotebookMagnification @ header, ImageSize->Dynamic[{cellContentSize[[1]],headerH}]] 
+  
+  ; $mainItem = Framed @ Pane[
+      withNotebookMagnification @ main
+    , ImageSize->Dynamic[mainSize, (mainSize[[1]]=#[[1]]; settSize[[1]]=cellContentSize[[1]]-#[[1]] - spacerSize-pixelColumnsOfUnkownOrigin)&]
+    , AppearanceElements->"ResizeArea"
+    ]
+  ; $settingsItem = Framed @ Pane[withNotebookMagnification @ settings, Dynamic[settSize], Scrollbars->True, AppearanceElements->None]     
+    
+; Grid[
+    { {$sizeListener} 
+    , {Grid[{{$spacerItem, $headerItem,  $spacerItem}}]}
+    , {$sizeListener} 
+    , {Grid[{{$spacerItem,   $mainItem,    $spacerItem,  $settingsItem, $spacerItem}}]}
+    , {$spacerItem}
+    }  
+  ]]
 , BaseStyle -> {   
     CacheGraphics->False
   , Magnification -> 1  
+  
+  , GridBoxOptions -> {
+      GridBoxAlignment->{"Columns"->{{Left}},"Rows"->{{Top}}}
+    , GridBoxSpacings->{"Columns"->{{0}},"Rows"->{{0}}}  
+    }
+    
   , FrameBoxOptions->{
       FrameMargins->0
-    , ImageMargins->panelMargin
+    , ImageMargins->0
     , FrameStyle->Directive[Thickness[Tiny],GrayLevel[.8]]    
     }
+    
   , PaneBoxOptions->{
       FrameMargins->0
     , ImageMargins->0

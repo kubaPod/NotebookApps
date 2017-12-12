@@ -1,9 +1,12 @@
+(* ::Package:: *)
+
 Begin["`AppNotebook`"];
+
 
 (*AppPanel and AppInitialization functions need to have those exact names *)
 
 AppPanel[]:= NotebookLayouts["Basic"][
-  importPanel[]
+    importPanel[]
   , plotPanel[]
   , settingsPanel[]
 ];
