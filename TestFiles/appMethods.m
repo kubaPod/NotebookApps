@@ -1,7 +1,6 @@
-(* ::Package:: *)
 
-Begin["`AppNotebook`"];
-
+(*you can assume that sessions symbols are imported here so use them freely*)
+(*ale packages specified in loading are here too*)
 
 (*AppPanel and AppInitialization functions need to have those exact names *)
 
@@ -48,5 +47,3 @@ settingsPanel[] = Column[{
 
 
 
-
-End[];

@@ -24,7 +24,10 @@ BeginPackage["NotebookApps`"];
 
   AppNotebook;
 
+    (*symbolic wrappers*)
   GetInjected;
+  AppSession;
+  AppNotebook;
 
   CreateSessionPreview;
   
@@ -45,9 +48,6 @@ Begin["`Private`"];
 (*NewApp*)
 
 
-NewApp[]:= NewApp @ SystemDialogInput["Directory"]
-
-
 (* ::Subsection:: *)
 (*AppNotebook*)
 
@@ -57,9 +57,11 @@ AppNotebook // Options = {
   "loading" :> Automatic
 };
 
-AppNotebook[options:OptionsPattern[]]:=Notebook[
+AppNotebook[options:OptionsPattern[{AppNotebook, Notebook}]]:=Notebook[
     { Cell[ BoxData @ ToBoxes @ AppLoadingPanel[options] ] }
     
+  , Sequence @@ FilterRules[{options}, Options[Notebook]]  
+  
   , CacheGraphics          -> False  
   , Background             -> GrayLevel@.95
   , CellContext            -> Notebook      
@@ -76,6 +78,10 @@ AppNotebook[options:OptionsPattern[]]:=Notebook[
   , PrivateNotebookOptions -> {"ExcludeFromShutdown" -> False}
   
   ];
+
+
+(* ::Subsection::Closed:: *)
+(*AppLoadingPanel*)
 
 
 AppLoadingPanel // Options = Options @ AppNotebook;
@@ -106,15 +112,38 @@ AppLoadingPanel[options:OptionsPattern[]]:=With[
 ];
 
 
+(* ::Subsection:: *)
+(*PopulateLoading*)
+
+
 PopulateLoading[loadingProcedure_Hold]:= ReplaceAll[
   loadingProcedure
-, { GetInjected["NotebookApp`"] :> With[
+, { 
+    GetInjected["NotebookApps`"] :> With[
       { content = Compress @ Import[ FindFile @ "NotebookApps`", "Text"]}
-    , Module[{stream}, stream=StringToStream @ Uncompress @ content; Get @ stream; Close @ stream] /; True
+    , Module[{stream}
+      , stream=StringToStream @ Uncompress @ content
+      ; Get @ stream
+      ; Close @ stream
+      ] /; True
     ]
-  , GetInjected[path_String] :> With[
+    
+  , AppSession[path_] :> With[
       { content = Compress @ Import[ path, "Text"]}
-    , Module[{stream}, stream=StringToStream @ Uncompress @ content; Get @ stream; Close @ stream] /; True
+    , Module[{stream}
+      , stream=StringToStream @ Uncompress @ content
+      ; BeginPackage["`AppSession`"]; Get @ stream; EndPackage[]
+      ; Close @ stream
+      ] /; True
+    ]  
+    
+  , AppNotebook[path_] :> With[
+      { content = Compress @ Import[ path, "Text"]}
+    , Module[{stream}
+      , stream=StringToStream @ Uncompress @ content
+      ; Begin["`AppNotebook`"]; Get @ stream; End[]
+      ; Close @ stream
+      ] /; True
     ]  
   }
 
