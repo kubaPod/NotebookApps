@@ -22,6 +22,8 @@
 
 BeginPackage["NotebookApps`"];
 
+  
+  NewNotebookApp;
   AppNotebook;
 
     (*symbolic wrappers*)
@@ -51,6 +53,72 @@ Begin["`Private`"];
 (* ::Subsection:: *)
 (*AppNotebook*)
 
+NewNotebookApp::usage = "NewNotebookApp[name, dir_.] creates dir/name with files essential for an app.";
+NewNotebookApp::dirTaken = "`` is not an empty directory, please delete content and try again.";
+
+NewNotebookApp[name_]:= NewNotebookApp[name, Directory[]];
+
+NewNotebookApp[name_, dir_]:= Module[{appDir, tag,devNb}
+, Catch[
+    appDir = FileNameJoin[{dir, name}]
+  ; If[
+      Not @ DirectoryQ @ appDir
+      , CreateDirectory @ appDir
+      , If[
+        FileNames["*",appDir] =!= {}
+        , Message[NewNotebookApp::dirTaken, appDir]
+        ; Throw[$Failed, tag]
+      ]
+    ]
+  ; Internal`WithLocalSettings[
+      SetDirectory @ appDir
+    , devNb = StringTemplate["``.nb"][name]
+    ; Export[devNb, DevNotebookTemplate[]]
+    ; CreateFile["session.m"]
+    ; CreateFile["methods.m"]
+    ; Put[methodsTemplate[], "methods.m"]
+    ; NotebookOpen @ AbsoluteFileName @ devNb
+    ; NotebookOpen @ AbsoluteFileName @ "methods.m"
+    , ResetDirectory[]
+    ]
+  , tag
+  ]
+];
+
+DevNotebookTemplate[]:=Notebook[
+  Function[
+    expr
+  , Cell[BoxData@MakeBoxes[expr], "Input"]
+  , {HoldAll, Listable}
+  ][
+    { Needs @ "NotebookApps`"
+    , SetDirectory@NotebookDirectory[]
+    , System`$appNotebook = AppNotebook[
+      "loading" :> (
+          GetInjected@"NotebookApps`"
+        ; AppSession["session.m"]
+        ; AppNotebook["methods.m"]
+        ; $CellContext`AppNotebook`AppInitialization[]
+      )
+      , WindowStatusArea -> "powered by NotebookApps`"
+      ];
+    , NotebookPut@System`$appNotebook
+    }
+  ]
+];
+
+methodsTemplate[]:= OutputForm@"
+  AppPanel[]:= NotebookLayouts[\"Basic\"][
+    \"Header panel\"
+  , \"main panel\"
+  , \"settings panel\"
+];
+
+AppInitialization[]:= {};
+
+
+";
+
 
 AppNotebook // Options = {
   "name" -> "",
@@ -58,7 +126,7 @@ AppNotebook // Options = {
 };
 
 AppNotebook[options:OptionsPattern[{AppNotebook, Notebook}]]:=Notebook[
-    { Cell[ BoxData @ ToBoxes @ AppLoadingPanel[options] ] }
+    { Cell[ BoxData @ ToBoxes @ AppLoadingPanel@ FilterRules[{options}, Options[AppNotebook]] ] }
     
   , Sequence @@ FilterRules[{options}, Options[Notebook]]  
   
@@ -69,7 +137,7 @@ AppNotebook[options:OptionsPattern[{AppNotebook, Notebook}]]:=Notebook[
   , CellFrameMargins       -> 0   
   
   , WindowSize             -> All(*800 {1, 1/GoldenRatio}*)
-  , WindowTitle            -> OptionValue["name"]
+  
   , WindowFrameElements    -> All
   , WindowElements         -> {"StatusArea", "MagnificationPopUp"}
   
