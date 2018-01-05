@@ -46,7 +46,7 @@ Begin["`Private`"];
 (*Apps*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*NewApp*)
 
 
@@ -74,7 +74,7 @@ NewNotebookApp[name_, dir_]:= Module[{appDir, tag,devNb}
     ; Export[devNb, DevNotebookTemplate[]]
     ; CreateFile["session.m"]
     ; CreateFile["methods.m"]
-    ; Put[methodsTemplate[], "methods.m", PageWidth -> 200]
+    ; Put[methodsTemplate[], "methods.m"]
     ; NotebookOpen @ AbsoluteFileName @ devNb
     ; NotebookOpen @ AbsoluteFileName @ "methods.m"
     
@@ -317,7 +317,7 @@ BookmarkSessionLoad[]:= Module[{file}
 ];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*NotebookLayouts*)
 
 
@@ -357,7 +357,7 @@ basicLayout[header_, main_, settings_, OptionsPattern[]]:=With[
       , All
       }
     , mainSize
-    , windowSize
+     
     }
   , Module[
       { $spacerItem
@@ -370,28 +370,29 @@ basicLayout[header_, main_, settings_, OptionsPattern[]]:=With[
       }
     , $spacerItem = Spacer[spacerSize {1,1}]
     
-    ; $sizeListener = With[{spacer = $spacerItem}
+    ; $sizeListener = With[{spacer = $spacerItem}, DynamicModule[{windowSize}
       , DynamicWrapper[
-          spacer
-        , If[ 
-            windowSize =!= AbsoluteCurrentValue[EvaluationNotebook[],WindowSize]            
-          , windowSize = AbsoluteCurrentValue[EvaluationNotebook[],WindowSize]
+          DynamicWrapper[
+            spacer
+            
+          , cellContentSize = windowSize - notebookFrameWidths - 2 spacerSize
+          ; Print[windowSize]
+          ; mainSize        = cellContentSize - {settSize[[1]], headerH} -  spacerSize - pixelColumnsOfUnkownOrigin
+          ; settSize[[2]]   = mainSize[[2]]
+          
+          , TrackedSymbols:>{windowSize}
           ]
-        , TrackedSymbols:>{}
+        , FEPrivate`Set[windowSize, CurrentValue[WindowSize]]
+                 
         ]
-        
+      , Initialization :> (windowSize = CurrentValue[WindowSize])        
       ]
+      ]
+      (*The outer DynamicWrapper is needed to fix this bug: https://mathematica.stackexchange.com/q/163091/5478 *)
       
-    ; $sizeAdjuster =  With[{spacer = $spacerItem}
-      , Dynamic[          
-          cellContentSize = windowSize - notebookFrameWidths - 2 spacerSize
-        ; mainSize        = cellContentSize - {settSize[[1]], headerH} -  spacerSize - pixelColumnsOfUnkownOrigin
-        ; settSize[[2]]   = mainSize[[2]]
-        ; spacer          
-        , TrackedSymbols:>{windowSize}
-        ]
+    
         
-      ]
+      
       (*I do this that way to avoid injecting options to every instance or passing those options to deeply *)
     ; $Framed = Framed[##,  FrameMargins -> 0, ImageMargins -> 0, FrameStyle   -> OptionValue["ItemFrameStyle"]]&
     ; $Pane = Pane[##, FrameMargins -> OptionValue["ItemFrameMargins"], ImageMargins -> 0, Alignment->{Center,Center}, BaseStyle->{LineBreakWithin->False}]&  
@@ -409,7 +410,7 @@ basicLayout[header_, main_, settings_, OptionsPattern[]]:=With[
     ; $Grid[
         { {$sizeListener (*!*)} 
         , {$Grid[{{$spacerItem, $headerItem,  $spacerItem}}]}
-        , {$sizeAdjuster (*!*)} 
+        , {$spacerItem} 
         , {$Grid[{{$spacerItem,   $mainItem,    $spacerItem,  $settingsItem, $spacerItem}}]}
         , {$spacerItem}
         }      
