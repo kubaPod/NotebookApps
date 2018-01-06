@@ -376,7 +376,6 @@ basicLayout[header_, main_, settings_, OptionsPattern[]]:=With[
             spacer
             
           , cellContentSize = windowSize - notebookFrameWidths - 2 spacerSize
-          ; Print[windowSize]
           ; mainSize        = cellContentSize - {settSize[[1]], headerH} -  spacerSize - pixelColumnsOfUnkownOrigin
           ; settSize[[2]]   = mainSize[[2]]
           
@@ -402,7 +401,12 @@ basicLayout[header_, main_, settings_, OptionsPattern[]]:=With[
     
     ; $mainItem = $Framed @ $Pane[
         withNotebookMagnification @ main
-      , ImageSize->Dynamic[mainSize, (mainSize[[1]]=#[[1]]; settSize[[1]]=cellContentSize[[1]]-#[[1]] - spacerSize-pixelColumnsOfUnkownOrigin)&]
+      , ImageSize->Dynamic[
+          mainSize
+        , ( mainSize[[1]]=#[[1]]          
+          ; settSize[[1]]=cellContentSize[[1]]-#[[1]] - spacerSize-pixelColumnsOfUnkownOrigin
+          )&
+        ]
       , AppearanceElements->"ResizeArea"
       ]
     ; $settingsItem = $Framed @ $Pane[withNotebookMagnification @ settings, Dynamic[settSize], Scrollbars->True, AppearanceElements->None]     
