@@ -47,7 +47,7 @@ Begin["`Private`"];
 (*Apps*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*NewApp*)
 
 
@@ -89,12 +89,17 @@ NewNotebookApp[name_, dir_]:= Module[{appDir, tag,devNb}
 DevNotebookTemplate[]:=Notebook[
   Cell[BoxData@#, "Input"] & /@ { 
   "Needs @ \"NotebookApps`\""
-, "NotebookPut[ 
-  AppNotebook[
-    \"Root\" \[Rule] NotebookDirectory[]
+, "$appNotebook = AppNotebook[
+    \"BuildRoot\" \[Rule] NotebookDirectory[]
+  , \"InitializationText\" -> \"Initialization...\"
   , WindowSize -> {700, 500}
-  ]
-];"     
+];
+
+NotebookPut @ $appNotebook"
+
+, "CDFDeploy[\[IndentingNewLine]  FileNameJoin[{NotebookDirectory[],\"app.cdf\"}]
+, $appNotebook\[IndentingNewLine]]"
+, "SystemOpen @ %"     
     }  
 ];
 
@@ -148,23 +153,28 @@ settingsPanel[]:=Slider @ Dynamic @ y;
 
 
 AppNotebook // ClearAll
+
 AppNotebook // Options = {
-  "Name" -> "",
-  "Root" :> Directory[],
-  Initialization :> (
-          GetInjected @ "NotebookApps`"
-        (*; AppSession @ "session.m"*)
-        ; AppNotebook @ "methods.m"
-        ; $CellContext`AppNotebook`AppInitialization[]
-      ),
-  WindowSize -> 1000 {1, 1/GoldenRatio}    
+
+  "Name" -> ""
+, "BuildRoot" :> Directory[]
+
+, Initialization :> (
+    GetInjected[ "NotebookApps`" ]
+  ; GetInjected[ "methods.m", "Scope" -> {Begin, "`AppNotebook`"}]
+  ; $CellContext`AppNotebook`AppInitialization[]
+  )
+  
+, WindowSize -> 1000 {1, 1/GoldenRatio}   
+
+, "InitializationText" -> "Initialization..."
      
 };
 
 
 
 AppNotebook[ options:OptionsPattern[{AppNotebook, Notebook}]]:= Internal`WithLocalSettings[
-  SetDirectory @ OptionValue["Root"]
+  SetDirectory @ OptionValue["BuildRoot"]
   
 , Notebook[
     { Cell[ 
@@ -194,7 +204,7 @@ AppNotebook[ options:OptionsPattern[{AppNotebook, Notebook}]]:= Internal`WithLoc
 ];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*AppLoadingPanel*)
 
 
@@ -202,6 +212,7 @@ AppLoadingPanel // Options = Options @ AppNotebook;
 
 AppLoadingPanel[options:OptionsPattern[]]:=With[
   { failedLoadSign = Style["\[WarningSign]", Blend[{Red,Orange}], 80, ShowStringCharacters->False]  
+  , waitingPane = $defaultWaitingPane @ OptionValue["InitializationText"]
   , loading = (
       Print["creating notebook initialization"]
     ; PopulateLoading @ OptionValue[Automatic, Automatic, Initialization, Hold]
@@ -210,7 +221,7 @@ AppLoadingPanel[options:OptionsPattern[]]:=With[
 , DynamicModule[{ loaded = False, loadFailed = False }
     , Dynamic[
         Which[ 
-          Not @ TrueQ @ loaded, Pane[ProgressIndicator[Appearance->"Necklace",ImageSize->300], ImageSize->800{1,1/GoldenRatio},Alignment->{Center,Center}]
+          Not @ TrueQ @ loaded, waitingPane
         , TrueQ @ loadFailed, failedLoadSign
         , True, $CellContext`AppNotebook`AppPanel[] /. _$CellContext`AppNotebook`AppPanel -> failedLoadSign
         ]
@@ -228,48 +239,84 @@ AppLoadingPanel[options:OptionsPattern[]]:=With[
     ]
 ];
 
+$defaultWaitingPane = Pane[
+  Overlay[
+    { ProgressIndicator[Appearance->"Necklace",ImageSize->Scaled/@{.3,.3}]
+    , #
+    }
+  , All
+  , Alignment->{Center,Center}  
+  ]
+, ImageSize -> FrontEnd`AbsoluteCurrentValue[WindowSize]
+, Alignment->{Center,Center}
+]&;
 
-(* ::Subsection::Closed:: *)
+
+(* ::Subsection:: *)
 (*PopulateLoading*)
 
 
-PopulateLoading[loadingProcedure_Hold]:= ReplaceAll[
-  loadingProcedure
-, { 
-    GetInjected["NotebookApps`"] :> With[
-      { content = (
-          Print["compressing NotebookApps` from ", File @ #]
-        ; Compress @ Import[ #, "Text"]
-        )& @ FindFile @ "NotebookApps`"
+PopulateLoading // ClearAll
+PopulateLoading // Options = {};
+PopulateLoading // Attributes = {};
+PopulateLoading[loadingProcedure_Hold]:= Module[
+  {tag = "PopulateLoading"}
+, Catch[
+    Check[
+      loadingProcedure /. {
+        source_GetInjected :> With[
+          {content = GIcontent @@ source, readFunction = GIreadFunction @@ source}
+        , readFunction[content] /; True
+        ]
       }
-    , Module[{stream}
-      , stream=StringToStream @ Uncompress @ content
-      ; Get @ stream
-      ; Close @ stream
-      ] /; True
+    , Throw[$Failed, tag]  
     ]
-    
-  , AppSession[path_] :> With[
-      { content = (Print["compressing ", File @ path ];Compress @ Import[ path, "Text"])}
-    , Module[{stream}
-      , stream=StringToStream @ Uncompress @ content
-      ; BeginPackage["`AppSession`"]; Get @ stream; EndPackage[]
-      ; Close @ stream
-      ] /; True
-    ]  
-    
-  , AppNotebook[path_] :> With[
-      { content = (Print["compressing ", File @ path ]; Compress @ Import[ path, "Text"])}
-    , Module[{stream}
-      , stream=StringToStream @ Uncompress @ content
-      ; Begin["`AppNotebook`"]; Get @ stream; End[]
-      ; Close @ stream
-      ] /; True
-    ]  
-  }
+  , tag
+  ]
+];
 
-]
 
+GetInjected // Options = {
+  "Scope" -> None
+};
+
+GetInjected::usage = "GetInjected[source, opts] is a symbolic wrapper which AppNotebook will replace with injected source";
+
+
+GIcontent[file_String, ___]:= Module[
+  {path = FindFile @ file}
+, Print["compressing: ", File[path]]
+; Compress @ Import[path, "Text"]  
+];
+
+
+GIreadFunction // Options = Options @ GetInjected;
+
+GIreadFunction[spec_, OptionsPattern[]]:= GIreadFunction[spec, OptionValue["Scope"]]
+GIreadFunction[spec_, None]:= Function[
+  source
+, Module[{stream}
+  , Internal`WithLocalSettings[
+      stream=StringToStream @ Uncompress @ source
+    , Get @ stream
+    , Close @ stream
+    ]
+  ]
+];
+
+GIreadFunction[spec_, {start: Begin|BeginPackage, context_String}]:= With[
+  { end = start /. {Begin -> End, _ -> EndPackage}}
+, Function[
+    source
+  , Module[{stream}
+    , Internal`WithLocalSettings[
+        stream=StringToStream @ Uncompress @ source
+      , start[context]; Get @ stream; end[]
+      , Close @ stream
+      ]
+    ]
+ ]
+]; 
 
 
 
@@ -382,7 +429,7 @@ BasicLayout // Options = {
 , "SettingsWidth" -> Automatic  
 , "ItemFrameStyle" -> Directive[Thickness[Tiny],GrayLevel[.8]]
 , "ItemFrameMargins" -> 10
-, "SpacingWidth" -> 4
+, "SpacingWidth" -> 10
   
 };
 BasicLayout[header_, main_, settings_, OptionsPattern[]]:=With[
