@@ -47,7 +47,7 @@ Begin["`Private`"];
 (*Apps*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*NewApp*)
 
 
@@ -87,16 +87,15 @@ NewNotebookApp[name_, dir_]:= Module[{appDir, tag,devNb}
 ];
 
 DevNotebookTemplate[]:=Notebook[
-  Function[
-    expr
-  , Cell[BoxData@MakeBoxes[expr], "Input"]
-  , {HoldAll, Listable}
-  ][
-    { Needs @ "NotebookApps`"
-    , SetDirectory@NotebookDirectory[]
-    , NotebookPut @ AppNotebook[WindowSize -> {700, 500}];     
-    }
+  Cell[BoxData@#, "Input"] & /@ { 
+  "Needs @ \"NotebookApps`\""
+, "NotebookPut[ 
+  AppNotebook[
+    \"Root\" \[Rule] NotebookDirectory[]
+  , WindowSize -> {700, 500}
   ]
+];"     
+    }  
 ];
 
 methodsTemplate[]:= "
@@ -144,12 +143,14 @@ settingsPanel[]:=Slider @ Dynamic @ y;
 ";
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*AppNotebook*)
 
 
+AppNotebook // ClearAll
 AppNotebook // Options = {
   "Name" -> "",
+  "Root" :> Directory[],
   Initialization :> (
           GetInjected @ "NotebookApps`"
         (*; AppSession @ "session.m"*)
@@ -160,7 +161,12 @@ AppNotebook // Options = {
      
 };
 
-AppNotebook[options:OptionsPattern[{AppNotebook, Notebook}]]:=Notebook[
+
+
+AppNotebook[ options:OptionsPattern[{AppNotebook, Notebook}]]:= Internal`WithLocalSettings[
+  SetDirectory @ OptionValue["Root"]
+  
+, Notebook[
     { Cell[ 
         BoxData @ ToBoxes @ AppLoadingPanel @ FilterRules[{options}, Options[AppNotebook]] 
       ] 
@@ -182,7 +188,10 @@ AppNotebook[options:OptionsPattern[{AppNotebook, Notebook}]]:=Notebook[
   , ScrollingOptions       -> {"VerticalScrollRange" -> Fit}
   , PrivateNotebookOptions -> {"ExcludeFromShutdown" -> False}
   
-  ];
+  ]
+  
+, ResetDirectory[]
+];
 
 
 (* ::Subsection::Closed:: *)
@@ -349,7 +358,15 @@ BookmarkSessionLoad[]:= Module[{file}
 
 NotebookLayouts["Basic"]:= BasicLayout;
 
-withNotebookMagnification = Style[#, Magnification-> FrontEnd`AbsoluteCurrentValue[EvaluationNotebook[], Magnification]]&;
+
+(*FrontEnd`AbsoluteCurrentValue was casing lags*)
+withNotebookMagnification// ClearAll;
+withNotebookMagnification[expr_]:= Style[
+  expr
+, Magnification-> Dynamic @ AbsoluteCurrentValue[EvaluationNotebook[], Magnification]
+];
+
+(*withNotebookMagnification = Identity;*)
 
 
 (* ::Subsection:: *)
