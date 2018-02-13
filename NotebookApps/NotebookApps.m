@@ -34,6 +34,7 @@ BeginPackage["NotebookApps`"];
   CreateSessionPreview;
   
   NotebookLayouts;
+  BasicLayout;
   
   BookmarkSession;
   BookmarkSessionLoad;
@@ -46,7 +47,7 @@ Begin["`Private`"];
 (*Apps*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*NewApp*)
 
 
@@ -74,7 +75,7 @@ NewNotebookApp[name_, dir_]:= Module[{appDir, tag,devNb}
     ; Export[devNb, DevNotebookTemplate[]]
     ; CreateFile["session.m"]
     ; CreateFile["methods.m"]
-    ; Put[methodsTemplate[], "methods.m"]
+    ; Export["methods.m", methodsTemplate[], "Text", PageWidth->\[Infinity]]
     ; NotebookOpen @ AbsoluteFileName @ devNb
     ; NotebookOpen @ AbsoluteFileName @ "methods.m"
     
@@ -98,23 +99,46 @@ DevNotebookTemplate[]:=Notebook[
   ]
 ];
 
-methodsTemplate[]:= OutputForm@"
+methodsTemplate[]:= "
   (* This is a special file for NotebookApps, its content will be localized within your notebook. *)
 
   (* AppPanel and AppInitialization are special names, don't change them. Rest is up to you. *)
 
-  (* You don't need to use NotebookLayouts but it is an effort free way to get nice layout. *)
+  (* You don't need to use BasicLayout but it is an effort free way to get nice layout. *)
   (* Alternatively just put a Grid there or whatever.*)
 
 
-  AppPanel[]:= NotebookLayouts[\"Basic\"][
-    Pane[\"this is a header, put here a logo or whatever\", {Full, Full}, Alignment\[Rule]Left, FrameMargins\[Rule]15]
-  , Graphics[Line @ {{-1,-1}, Dynamic@{1,y}},  PlotRange\[Rule]1, Frame \[Rule] True, AspectRatio\[Rule]Full, ImageSize \[Rule] Full]
-  , Slider @ Dynamic @ y
-  , \"SettingsW\" -> 300
+
+    (*AppPanel name should not be changed*)
+  AppPanel[]:= BasicLayout[
+    headerPanel[]
+  , mainPanel[]
+  , settingsPanel[]
+  , \"SettingsWidth\" -> 300
+  ];
+
+    (*AppInitialization name should not be changed*)
+  AppInitialization[]:= {
+    y = 1;
+  };
+
+
+
+
+
+headerPanel[]:=Pane[\"this is a header, put here a logo or whatever\"
+, {Full, Full}
+, Alignment\[Rule]Left
 ];
 
-AppInitialization[]:= {};
+mainPanel[]:=Graphics[Line @ {{-1,-1}, Dynamic@{1,y}}
+,  PlotRange\[Rule]1
+, Frame \[Rule] True
+, AspectRatio\[Rule]Full
+, ImageSize \[Rule] Full
+];
+
+settingsPanel[]:=Slider @ Dynamic @ y;
 
 
 ";
@@ -126,10 +150,10 @@ AppInitialization[]:= {};
 
 AppNotebook // Options = {
   "Name" -> "",
-  "Loading" :> (
-          GetInjected@"NotebookApps`"
-        ; AppSession["session.m"]
-        ; AppNotebook["methods.m"]
+  Initialization :> (
+          GetInjected @ "NotebookApps`"
+        (*; AppSession @ "session.m"*)
+        ; AppNotebook @ "methods.m"
         ; $CellContext`AppNotebook`AppInitialization[]
       ),
   WindowSize -> 1000 {1, 1/GoldenRatio}    
@@ -137,8 +161,10 @@ AppNotebook // Options = {
 };
 
 AppNotebook[options:OptionsPattern[{AppNotebook, Notebook}]]:=Notebook[
-    { Cell[ BoxData @ ToBoxes @ AppLoadingPanel@ FilterRules[{options}, Options[AppNotebook]] ] }
-    
+    { Cell[ 
+        BoxData @ ToBoxes @ AppLoadingPanel @ FilterRules[{options}, Options[AppNotebook]] 
+      ] 
+    }    
   , Sequence @@ FilterRules[{options}, Options[Notebook]]  
   
   , CacheGraphics          -> False  
@@ -166,10 +192,10 @@ AppNotebook[options:OptionsPattern[{AppNotebook, Notebook}]]:=Notebook[
 AppLoadingPanel // Options = Options @ AppNotebook;
 
 AppLoadingPanel[options:OptionsPattern[]]:=With[
-  { failedLoadSign = Style["\[WarningSign]",Blend[{Red,Orange}],80, ShowStringCharacters->False]  
+  { failedLoadSign = Style["\[WarningSign]", Blend[{Red,Orange}], 80, ShowStringCharacters->False]  
   , loading = (
       Print["creating notebook initialization"]
-    ; PopulateLoading @ OptionValue[Automatic, Automatic, "Loading", Hold]
+    ; PopulateLoading @ OptionValue[Automatic, Automatic, Initialization, Hold]
     )
   }
 , DynamicModule[{ loaded = False, loadFailed = False }
@@ -321,7 +347,7 @@ BookmarkSessionLoad[]:= Module[{file}
 (*NotebookLayouts*)
 
 
-NotebookLayouts["Basic"]:= basicLayout;
+NotebookLayouts["Basic"]:= BasicLayout;
 
 withNotebookMagnification = Style[#, Magnification-> FrontEnd`AbsoluteCurrentValue[EvaluationNotebook[], Magnification]]&;
 
@@ -330,30 +356,28 @@ withNotebookMagnification = Style[#, Magnification-> FrontEnd`AbsoluteCurrentVal
 (*basicLayout*)
 
 
-(*        header            *)
-(* ---------------------- *)
-(* main area | settingsArea *)
+BasicLayout // ClearAll 
 
+BasicLayout::usage = "BasicLayout[header, main, settings, options___] creates a following layout: " <> ToString[Grid[{{"header",SpanFromLeft},{"main","settings"}},Frame->All],StandardForm];
 
-basicLayout // ClearAll 
-basicLayout // Options = {
-  "HeaderH" -> Automatic
-, "SettingsW" -> Automatic  
+BasicLayout // Options = {
+  "HeaderHeight" -> Automatic
+, "SettingsWidth" -> Automatic  
 , "ItemFrameStyle" -> Directive[Thickness[Tiny],GrayLevel[.8]]
-, "ItemFrameMargins" -> 0
-, "SpacingW" -> 10
+, "ItemFrameMargins" -> 10
+, "SpacingWidth" -> 4
   
 };
-basicLayout[header_, main_, settings_, OptionsPattern[]]:=With[
-  { spacerSize = OptionValue["SpacingW"]
-  , headerH = OptionValue["HeaderH"] /. Automatic :> Rasterize[header, "BoundingBox"][[2]]
+BasicLayout[header_, main_, settings_, OptionsPattern[]]:=With[
+  { spacerSize = OptionValue["SpacingWidth"]
+  , headerH = OptionValue["HeaderHeight"] /. Automatic :> Rasterize[header, "BoundingBox"][[2]] + 2 OptionValue["ItemFrameMargins"]
   , notebookFrameWidths = {4, 25}
   , pixelColumnsOfUnkownOrigin = 3
   }
 , DynamicModule[
     { cellContentSize
     , settSize = {
-        OptionValue["SettingsW"] /. Automatic -> 200
+        OptionValue["SettingsWidth"] /. Automatic -> 200
       , All
       }
     , mainSize
@@ -392,10 +416,10 @@ basicLayout[header_, main_, settings_, OptionsPattern[]]:=With[
     
         
       
-      (*I do this that way to avoid injecting options to every instance or passing those options to deeply *)
+      (*I do this that way to avoid injecting options to every instance or passing those options too deeply *)
     ; $Framed = Framed[##,  FrameMargins -> 0, ImageMargins -> 0, FrameStyle   -> OptionValue["ItemFrameStyle"]]&
     ; $Pane = Pane[##, FrameMargins -> OptionValue["ItemFrameMargins"], ImageMargins -> 0, Alignment->{Center,Center}, BaseStyle->{LineBreakWithin->False}]&  
-    ; $Grid = Grid[##, Alignment -> {Left, Top}, Spacings -> {0,0}]&
+    ; $Grid = Grid[##, Alignment -> {Left, Top}, Spacings -> {0,0}, ItemSize->{Automatic,0}]&
        
     ; $headerItem = $Framed @ $Pane[withNotebookMagnification @ header, ImageSize->Dynamic[{cellContentSize[[1]],headerH}]] 
     
@@ -409,7 +433,14 @@ basicLayout[header_, main_, settings_, OptionsPattern[]]:=With[
         ]
       , AppearanceElements->"ResizeArea"
       ]
-    ; $settingsItem = $Framed @ $Pane[withNotebookMagnification @ settings, Dynamic[settSize], Scrollbars->True, AppearanceElements->None]     
+      
+    ; $settingsItem = $Framed @ $Pane[
+        withNotebookMagnification @ settings
+      , Dynamic[settSize]
+      , Scrollbars -> True
+      , AppearanceElements -> None
+      , Alignment -> {Left, Top}
+      ]     
       
     ; $Grid[
         { {$sizeListener (*!*)} 
