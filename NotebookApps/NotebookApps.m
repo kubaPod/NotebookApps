@@ -211,8 +211,8 @@ AppNotebook[ options:OptionsPattern[{AppNotebook, Notebook}]]:= Internal`WithLoc
 AppLoadingPanel // Options = Options @ AppNotebook;
 
 AppLoadingPanel[options:OptionsPattern[]]:=With[
-  { failedLoadSign = Style["\[WarningSign]", Blend[{Red,Orange}], 80, ShowStringCharacters->False]  
-  , waitingPane = $defaultWaitingPane @ OptionValue["InitializationText"]
+  { failedLoadSign = (*Style["\[WarningSign]", Blend[{Red,Orange}], 80, ShowStringCharacters->False];*)1  
+  , waitingPane = (*$defaultWaitingPane @ OptionValue["InitializationText"];*)2
   , loading = (
       Print["creating notebook initialization"]
     ; PopulateLoading @ OptionValue[Automatic, Automatic, Initialization, Hold]
@@ -227,6 +227,7 @@ AppLoadingPanel[options:OptionsPattern[]]:=With[
         ]
       , TrackedSymbols:>{loaded}  
       ]
+      
     , UnsavedVariables :> {loaded}  
     , SynchronousInitialization->False
     , Initialization :> (
@@ -252,7 +253,7 @@ $defaultWaitingPane = Pane[
 ]&;
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*PopulateLoading*)
 
 
