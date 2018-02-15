@@ -47,7 +47,7 @@ Begin["`Private`"];
 (*Apps*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*NewApp*)
 
 
@@ -161,8 +161,8 @@ AppNotebook // Options = {
 
 , Initialization :> (
     GetInjected[ "NotebookApps`" ]
-  ; GetInjected[ "methods.m", "Scope" -> {Begin, "`AppNotebook`"}]
-  ; $CellContext`AppNotebook`AppInitialization[]
+  ; GetInjected[ "methods.m", "Scope" -> {Begin, "`AppNotebook2`"}]
+  ; $CellContext`AppInitialization[]
   )
   
 , WindowSize -> 1000 {1, 1/GoldenRatio}   
@@ -211,29 +211,39 @@ AppNotebook[ options:OptionsPattern[{AppNotebook, Notebook}]]:= Internal`WithLoc
 AppLoadingPanel // Options = Options @ AppNotebook;
 
 AppLoadingPanel[options:OptionsPattern[]]:=With[
-  { failedLoadSign = (*Style["\[WarningSign]", Blend[{Red,Orange}], 80, ShowStringCharacters->False];*)1  
-  , waitingPane = (*$defaultWaitingPane @ OptionValue["InitializationText"];*)2
+  { failedLoadSign = Style["\[WarningSign]", Blend[{Red,Orange}], 80, ShowStringCharacters->False]  
+  , waitingPane = $defaultWaitingPane @ OptionValue["InitializationText"]
   , loading = (
       Print["creating notebook initialization"]
     ; PopulateLoading @ OptionValue[Automatic, Automatic, Initialization, Hold]
     )
   }
-, DynamicModule[{ loaded = False, loadFailed = False }
-    , Dynamic[
+, DynamicModule[{ loaded = False, loadFailed = False, theApp }
+    , 
+    
+    Dynamic[
         Which[ 
           Not @ TrueQ @ loaded, waitingPane
         , TrueQ @ loadFailed, failedLoadSign
-        , True, $CellContext`AppNotebook`AppPanel[] /. _$CellContext`AppNotebook`AppPanel -> failedLoadSign
+        , True, Refresh[theApp, None]  
         ]
       , TrackedSymbols:>{loaded}  
       ]
-      
-    , UnsavedVariables :> {loaded}  
+    , UnsavedVariables :> {loaded, theApp}  
     , SynchronousInitialization->False
     , Initialization :> (
         loaded = False
       ; Pause[.001] 
+           (*'export to notebook context'*)
+      ; $CellContext`AppPanel
+      ; $CellContext`AppInitialization
+      
       ; Check[ ReleaseHold @ loading, loadFailed = True ]
+         (*there was no theApp at the beginning but then dynamic went crazy on window resize/move*)
+         (*moving rhs from theApp from top Which[] fixed the problem...*)
+         (*I wasted to much time for this*)
+      ; theApp = $CellContext`AppPanel[] /. _$CellContext`AppPanel -> failedLoadSign
+      
       ; loaded = True  
     
       )         
@@ -253,7 +263,9 @@ $defaultWaitingPane = Pane[
 ]&;
 
 
-(* ::Subsection::Closed:: *)
+
+
+(* ::Subsection:: *)
 (*PopulateLoading*)
 
 
@@ -306,7 +318,7 @@ GIreadFunction[spec_, None]:= Function[
 ];
 
 GIreadFunction[spec_, {start: Begin|BeginPackage, context_String}]:= With[
-  { end = start /. {Begin -> End, _ -> EndPackage}}
+  { end = start /. {Begin -> End, BeginPackage -> EndPackage}}
 , Function[
     source
   , Module[{stream}
