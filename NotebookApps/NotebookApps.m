@@ -414,8 +414,13 @@ BookmarkSession[ path_String, context_String /; StringEndsQ[context, "`"] ]:= Mo
 
 
 BookmarkSessionLoad::usage = "BookmarkSessionLoad[file] reads file with session data into current context, nothing fancy.";
-BookmarkSessionLoad[]:= Module[{file = ""}
-, file = SystemDialogInput["FileOpen", "*"]
+
+BookmarkSessionLoad // Options = {
+   "SystemDialogInit" -> "*"
+};
+
+BookmarkSessionLoad[ OptionsPattern[] ]:= Module[{file = ""}
+, file = SystemDialogInput["FileOpen", OptionValue["SystemDialogInit"]]
 ; Switch[ file
   , $Canceled | $Failed | "", $Failed
   , _String, BookmarkSessionLoad[file]
