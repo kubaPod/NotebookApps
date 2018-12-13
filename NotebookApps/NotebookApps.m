@@ -148,7 +148,7 @@ settingsPanel[]:=Slider @ Dynamic @ y;
 ";
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*AppNotebook*)
 
 
@@ -204,7 +204,7 @@ AppNotebook[ options:OptionsPattern[{AppNotebook, Notebook}]]:= Internal`WithLoc
 ];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*AppLoadingPanel*)
 
 
@@ -298,7 +298,7 @@ GetInjected::usage = "GetInjected[source, opts] is a symbolic wrapper which AppN
 
 GIcontent[file_String, ___]:= Module[
   {path = FindFile @ file}
-, Print["compressing: ", File[path]]
+, Print["compressing: ", file, " - ", File[path]]
 ; Compress @ Import[path, "Text"]  
 ];
 
@@ -373,42 +373,61 @@ VariableTracker[symbol_]:= DynamicModule[
 ]
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Bookmarks*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*BookmarkSession*)
 
 
 (*TODO: make names more informative in terms of parent app*)
+
+$AppMonitor = HoldComplete;
+
 BookmarkSession::usage = "BookmarkSession[context_:$Context] saves context in a .session file in choosen directory.";
+
+
 BookmarkSession[]:= BookmarkSession @ $Context;
-BookmarkSession[notebookContext_String?(StringEndsQ["`"])]:=Module[
-  {path, sessionContext = notebookContext <> "AppSession`", dir}
+
+BookmarkSession[ path_String /; !StringEndsQ[path, "`"] ]:= BookmarkSession[ path, $Context ]
+
+BookmarkSession[context_String /; StringEndsQ[context, "`"]]:=Module[
+  {path, sessionContext = context <> "AppSession`", dir}
 , dir = SystemDialogInput["Directory", $HomeDirectory]
 ; path = FileNameJoin[{dir, CreateUUID["myFirstApp"]<>".session"}];
-; Print @ "saving session"
-; Print @ sessionContext
+; BookmarkSession[path, context]
+]
+
+BookmarkSession[ path_String, context_String /; StringEndsQ[context, "`"] ]:= Module[
+  { sessionContext = context <> "AppSession`", dir}
+, $AppMonitor @ "saving session"
+; $AppMonitor @ sessionContext
 ; Block[{$ContextPath = {sessionContext}}, Save[path, Evaluate @ sessionContext]  ]
 ]
 
 
 
-(* ::Subsection::Closed:: *)
+
+(* ::Subsection:: *)
 (*BookmarkSessionLoad*)
 
 
 BookmarkSessionLoad::usage = "BookmarkSessionLoad[file] reads file with session data into current context, nothing fancy.";
-BookmarkSessionLoad[]:= Module[{file}
-, file = SystemDialogInput["FileOpen", "*.session"]
-; Print["loading session"];
-; Print[$Context]
-; Print @ Import[file, "text"]
-; If[
-    Quiet @ TrueQ @ FileExistsQ @ #
-  , Get @ #
-  ]& @ file
+BookmarkSessionLoad[]:= Module[{file = ""}
+, file = SystemDialogInput["FileOpen", "*"]
+; Switch[ file
+  , $Canceled | $Failed | "", $Failed
+  , _String, BookmarkSessionLoad[file]
+  ]
+]
+
+BookmarkSessionLoad[file_String /; FileExistsQ[file]]:=Module[
+  {}
+, $AppMonitor["loading session"];
+; $AppMonitor[$Context]
+
+; Get @ file
 ];
 
 
@@ -429,7 +448,7 @@ withNotebookMagnification[expr_]:= Style[
 (*withNotebookMagnification = Identity;*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*basicLayout*)
 
 
