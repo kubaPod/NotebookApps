@@ -38,6 +38,9 @@ BeginPackage["NotebookApps`"];
   
   BookmarkSession;
   BookmarkSessionLoad;
+  
+  
+  NightThemeButton;
 
 
 Begin["`Private`"];
@@ -265,7 +268,7 @@ $defaultWaitingPane = Pane[
 
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*PopulateLoading*)
 
 
@@ -373,11 +376,11 @@ VariableTracker[symbol_]:= DynamicModule[
 ]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Bookmarks*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*BookmarkSession*)
 
 
@@ -409,7 +412,7 @@ BookmarkSession[ path_String, context_String /; StringEndsQ[context, "`"] ]:= Mo
 
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*BookmarkSessionLoad*)
 
 
@@ -436,7 +439,7 @@ BookmarkSessionLoad[file_String /; FileExistsQ[file]]:=Module[
 ];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*NotebookLayouts*)
 
 
@@ -560,6 +563,45 @@ BasicLayout[header_, main_, settings_, OptionsPattern[]]:=With[
 ];
 
 
+
+
+(* ::Section:: *)
+(*GUI elements*)
+
+
+$darkStyles={
+  GraphicsBoxOptions->{
+    Background -> Black
+  , FrameTicksStyle -> White
+  }
+, ButtonBoxOptions->{
+    Background->Black
+  , BaseStyle->{ShowStringCharacters->False}
+  }
+, FontColor->White
+, Background->Black
+};
+
+With[
+  { darkStyles  = $darkStyles
+  , lightStyles = $darkStyles/.(opt_->val:Except[_List]):>(opt->Inherited)
+  , nb         := EvaluationNotebook[]
+  , themeCV    := CurrentValue[EvaluationNotebook[],{TaggingRules,"Theme"}]
+  },
+NightThemeButton[]:=Button[
+  Graphics[
+    { DynamicBox[FEPrivate`If[FEPrivate`SameQ[themeCV,"dark"],GrayLevel[1],GrayLevel[0]]]
+    , Disk[{0,0},1,{-Pi/2,Pi/2}], Thick, Circle[]
+    }
+  , ImageSize->{15,15}
+  ]
+, If[themeCV==="dark"
+  , SetOptions[nb,lightStyles];themeCV="light"
+  , SetOptions[nb,darkStyles];themeCV="dark"
+  ]
+, Appearance->None
+]
+]
 
 
 (* ::Section::Closed:: *)
