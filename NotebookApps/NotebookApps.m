@@ -569,22 +569,17 @@ BasicLayout[header_, main_, settings_, OptionsPattern[]]:=With[
 (*GUI elements*)
 
 
-$darkStyles={
-  GraphicsBoxOptions->{
-    Background -> Black
-  , FrameTicksStyle -> White
-  }
-, ButtonBoxOptions->{
-    Background->Black
-  , BaseStyle->{ShowStringCharacters->False}
-  }
-, FontColor->White
-, Background->Black
+$darkStyles = {
+  {GraphicsBoxOptions, Background} -> Black,
+  {GraphicsBoxOptions, FrameTicksStyle} -> White,
+  {ButtonBoxOptions, Background} -> Black,
+  {ButtonBoxOptions, BaseStyle, FontColor} -> White,
+  {FontColor} -> White,
+  {Background} -> Black
 };
 
 With[
   { darkStyles  = $darkStyles
-  , lightStyles = $darkStyles/.(opt_->val:Except[_List]):>(opt->Inherited)
   , nb         := EvaluationNotebook[]
   , themeCV    := CurrentValue[EvaluationNotebook[],{TaggingRules,"Theme"}]
   },
@@ -596,8 +591,8 @@ NightThemeButton[]:=Button[
   , ImageSize->{15,15}
   ]
 , If[themeCV==="dark"
-  , SetOptions[nb,lightStyles];themeCV="light"
-  , SetOptions[nb,darkStyles];themeCV="dark"
+  , (CurrentValue[nb, #] = Inherited) & @@@ darkStyles; themeCV="light"
+  , (CurrentValue[nb, #] = #2) & @@@ darkStyles; themeCV="dark"
   ]
 , Appearance->None
 ]
