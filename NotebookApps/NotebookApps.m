@@ -578,22 +578,22 @@ $darkStyles = {
   {Background} -> Black
 };
 
-With[
+NightThemeButton[]:= With[
   { darkStyles  = $darkStyles
   , nb         := EvaluationNotebook[]
   , themeCV    := CurrentValue[EvaluationNotebook[],{TaggingRules,"Theme"}]
-  },
-NightThemeButton[]:=Button[
-  Graphics[
-    { DynamicBox[FEPrivate`If[FEPrivate`SameQ[themeCV,"dark"],GrayLevel[1],GrayLevel[0]]]
-    , Disk[{0,0},1,{-Pi/2,Pi/2}], Thick, Circle[]
-    }
-  , ImageSize->{15,15}
-  ]
-, If[themeCV==="dark"
-  , (CurrentValue[nb, #] = Inherited) & @@@ darkStyles; themeCV="light"
-  , (CurrentValue[nb, #] = #2) & @@@ darkStyles; themeCV="dark"
-  ]
+  }
+, Button[
+    Graphics[
+      { DynamicBox[FEPrivate`If[FEPrivate`SameQ[themeCV,"dark"],GrayLevel[1],GrayLevel[0]]]
+      , Disk[{0,0},1,{-Pi/2,Pi/2}], Thick, Circle[]
+      }
+    , ImageSize->{15,15}
+    ]
+  , If[themeCV==="dark"
+    , (CurrentValue[nb, #] = Inherited) & @@@ darkStyles; themeCV="light"
+    , (CurrentValue[nb, #] = #2) & @@@ darkStyles; themeCV="dark"
+    ]
 , Appearance->None
 ]
 ]
