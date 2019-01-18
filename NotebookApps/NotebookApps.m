@@ -249,11 +249,12 @@ AppLoadingPanel[options:OptionsPattern[]]:=With[
       ; $CellContext`AppPanel
       ; $CellContext`AppInitialization
       
-      ; Check[ ReleaseHold @ loading, loadFailed = True ]
+      (*; Check[ ReleaseHold @ loading, loadFailed = True ]*)
+      ; ReleaseHold @ loading
          (*there was no theApp at the beginning but then dynamic went crazy on window resize/move*)
          (*moving rhs from theApp from top Which[] fixed the problem...*)
          (*I wasted to much time for this*)
-      ; theApp = $CellContext`AppPanel[] /. _$CellContext`AppPanel -> failedLoadSign
+      ; theApp = $CellContext`AppPanel[] /. _$CellContext`AppPanel :> (Print[$Context];failedLoadSign)
       
       ; loaded = True  
     
@@ -282,6 +283,8 @@ $defaultWaitingPane = Pane[
 
 PopulateLoading // ClearAll
 
+PopulateLoading::encErr = "Something went wrong when trying to encode app initialization";
+
 PopulateLoading[loadingProcedure:_Hold, encode_:True]:= Catch @ Module[
   { temp}
 , Check[
@@ -294,16 +297,16 @@ PopulateLoading[loadingProcedure:_Hold, encode_:True]:= Catch @ Module[
       ]
     }
             
-  ; If[Not @ TrueQ @ encode, Throw @ temp]
+  ; If[Not @ TrueQ @ encode, Print["not encoded"]; Throw @ temp]
   
   ; With[{enc = EncodeExpression @ temp}
-    , Hold @ Module[{str = StringToStream @ enc, res}
+    , Print["Encoded"]; Hold @ Module[{str = StringToStream @ enc, res}
       , res = ReleaseHold @ Get @ str
       ; Close @ str
       ; res 
       ]
     ]       
-  , Throw @ $Failed
+  , Message[PopulateLoading::encErr]; Throw @ $Failed
   ]
 ];
 
