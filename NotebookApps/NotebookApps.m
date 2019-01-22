@@ -48,6 +48,9 @@ BeginPackage["NotebookApps`"];
 Begin["`Private`"];
 
 
+$BuildMonitor = Print;
+
+
 (* ::Section:: *)
 (*Apps*)
 
@@ -277,7 +280,7 @@ $defaultWaitingPane = Pane[
 
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*PopulateLoading*)
 
 
@@ -346,7 +349,7 @@ GetInjected::usage = "GetInjected[source, opts] is a symbolic wrapper which AppN
 
 GIcontent[file_String, ___]:= Module[
   {path = FindFile @ file}
-, PrintTemporary["compressing: ", file, " - ", File[path]]
+, $BuildMonitor["compressing: ", file, " - ", File[path]]
 ; Compress @ Import[path, "Text"]  
 ];
 
@@ -355,8 +358,8 @@ GIreadFunction // Options = Options @ GetInjected;
 
 GIreadFunction[spec_, OptionsPattern[]]:= With[
   { 
-    baseContextBlock     = BaseContextFunction[spec, OptionValue @ "Scope"]
-  , relativeContextBlock = RelativeContextFunction @ OptionValue @ "ContextRules"
+    baseContextBlock     = BaseContextFunction[ OptionValue @ "Scope"]
+  , relativeContextBlock = RelativeContextFunction[spec, OptionValue @ "ContextRules"]
   }
   
 , Function[{source}
@@ -373,6 +376,10 @@ GIreadFunction[spec_, OptionsPattern[]]:= With[
 
 
 BaseContextFunction::usage = "BaseContextFunction[spec] returns a function to that creates context envirnment for a source file";
+
+BaseContextFunction::invArgs = "Can't use ``";
+
+BaseContextFunction[args___]:= (Message[BaseContextFunction::invArgs, {args}];$Failed);
 
 BaseContextFunction[None] = Identity;
 
@@ -393,6 +400,10 @@ BaseContextFunction[{start: (Begin | BeginPackage ), context_String}]:= With[
 RelativeContextFunction::usage = 
  "RelativeContextFunction[context, method] return a function " <>
  "that makes BeginPackage[context] behave like BeginPackage[`context]";
+ 
+RelativeContextFunction::invArgs = "Can't use ``";
+
+RelativeContextFunction[args___]:= (Message[RelativeContextFunction::invArgs, {args}];$Failed);
 
 RelativeContextFunction[spec_, None] = Identity; 
 
