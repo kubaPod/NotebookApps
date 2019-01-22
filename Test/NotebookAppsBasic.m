@@ -4,7 +4,7 @@ Needs @ "NotebookApps`";
 testExpression = {"\:0105-\[Alpha]-\[ADoubleDot]", {1,2,3}};
 
 
-(* ::Subsubsection:: *)
+(* ::Section:: *)
 (*EncodeExpression*)
 
 
@@ -25,7 +25,7 @@ str = StringToStream @ EncodeExpression @ testExpression;
 ]
 
 
-(* ::Subsubsection:: *)
+(* ::Section:: *)
 (*PopulateLoading*)
 
 
@@ -35,3 +35,51 @@ VerificationTest[
 , TestID -> "expr === ReleaseHold @ PopulateLoading @ Hold @ expr"
 ]
 
+
+
+(* ::Section:: *)
+(*BaseContextFunction*)
+
+
+VerificationTest[
+  NotebookApps`Private`BaseContextFunction[None]
+, Identity
+, TestID -> "BaseContextFunction[None]"
+]
+
+
+Remove @ "*`notebookAppsTestSymbol";
+VerificationTest[
+  NotebookApps`Private`BaseContextFunction[{Begin,"`Sub`"}] @ ToExpression["notebookAppsTestSymbol"]
+; Context @ Evaluate @ First @ Names["*`notebookAppsTestSymbol"]
+, "Global`Sub`"
+, TestID -> "NotebookApps`Private`BaseContextFunction[{Begin,\"`Sub`\"}]@ToExpr..."
+]
+
+
+(* ::Section:: *)
+(*RelativeContextFunction*)
+
+
+VerificationTest[
+  NotebookApps`Private`RelativeContextFunction["asd",None]
+, Identity
+, TestID -> "RelativeContextFunction[\"asd\",None]"
+]
+
+
+Quiet@Remove[ "*`notebookAppsTestSymbol", "*`*`notebookAppsTestSymbol"];
+
+Block[{$ContextPath}
+, NotebookApps`Private`RelativeContextFunction["MyPackage`", Automatic] @ ToExpression["
+BeginPackage[\"MyPackage`\"];
+notebookAppsTestSymbol;
+EndPackage[];
+"]
+];
+
+VerificationTest[
+  Context @ Evaluate @ First @ Names["*`*`notebookAppsTestSymbol"]
+, "Global`MyPackage`"
+, TestID -> "RelativeContextFunction[\"MyPackage`\", Automatic]"
+]
