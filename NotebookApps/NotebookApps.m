@@ -249,7 +249,7 @@ AppLoadingPanel[options:OptionsPattern[]]:=With[
         loaded = False
       ; Pause[.001] 
            (*'export to notebook context'*)
-      ; $CellContext`AppPanel
+      ; $CellContext`AppPanel (*TODO: use Symbol for consistency. Or remove.*)
       ; $CellContext`AppInitialization
       
       (*; Check[ ReleaseHold @ loading, loadFailed = True ]*)
@@ -262,7 +262,7 @@ AppLoadingPanel[options:OptionsPattern[]]:=With[
       ; loaded = True  
     
       )         
-    ]
+    ] (*TODO: msg handler for initialization*)
 ];
 
 $defaultWaitingPane = Pane[
