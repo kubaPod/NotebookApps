@@ -99,7 +99,10 @@ DevNotebookTemplate[appSourceFile_String]:= Module[{cells}
 , cells = {   
 "Needs @ \"NotebookApps`\"", 
 
-"$appNotebook = AppNotebook[
+"
+Quiet @ NotebookDelete /@ {$debugNbObject, $appNbObject};
+
+$appNotebook = AppNotebook[
     \"BuildRoot\" \[Rule] NotebookDirectory[]
   , \"InitializationText\" -> \"Initialization...\"
   , Initialization :> (
@@ -111,7 +114,9 @@ DevNotebookTemplate[appSourceFile_String]:= Module[{cells}
   , WindowSize -> {700, 500}
 ];
 
-NotebookPut @ $appNotebook" // StringTemplate // # @ appSourceFile &,
+$appNbObject = NotebookPut @ $appNotebook" // StringTemplate // # @ appSourceFile &,
+
+"$debugNbObject = CreateDocument[{}, CellContext -> CurrentValue[$appNbObject, {TaggingRules, \"Context\"}] ]",
 
 "CDFDeploy[\[IndentingNewLine]  FileNameJoin[{NotebookDirectory[],\"app.cdf\"}]
 , $appNotebook\[IndentingNewLine]]",
@@ -210,7 +215,7 @@ AppNotebook[ options:OptionsPattern[{AppNotebook, Notebook}]]:= Internal`WithLoc
   , CellFrameMargins       -> 0   
   
  
-  
+  , TaggingRules           -> {} (*Otherwise they can inherit too much*)
   , WindowFrameElements    -> All
   , WindowElements         -> {"StatusArea", "MagnificationPopUp"}
   
@@ -224,7 +229,7 @@ AppNotebook[ options:OptionsPattern[{AppNotebook, Notebook}]]:= Internal`WithLoc
 ];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*AppLoadingPanel*)
 
 
@@ -242,34 +247,34 @@ AppLoadingPanel[options:OptionsPattern[]]:=With[
       ]
     )
   }
-, DynamicModule[{ loaded = False, loadFailed = False, theApp }
+, DynamicModule[{ mainViewState = "loading", loaded = False, loadFailed = False, theApp }
     , 
     
-    Dynamic[
-        Which[ 
-          Not @ TrueQ @ loaded, waitingPane
-        , TrueQ @ loadFailed  , failedLoadSign
-        , True                , Refresh[theApp, None]  
-        ]
-      , TrackedSymbols:>{loaded}  
-      ]
-    , UnsavedVariables :> {loaded, theApp}  
+    PaneSelector[
+      { "loading" -> waitingPane
+      , "failed"  -> failedLoadSign
+      , "ok"      -> Dynamic[Refresh[theApp, None]]}
+    , Dynamic[ mainViewState + 0 ]
+    , ImageSize -> Automatic
+    ]  
+        
+    , UnsavedVariables :> {loaded, theApp, mainViewState}  
+    
     , SynchronousInitialization->False
-    , Initialization :> (
-        loaded = False
-      ; Pause[.001] 
-           (*'export to notebook context'*)
-      ; $CellContext`AppPanel (*TODO: use Symbol for consistency. Or remove.*)
-      ; $CellContext`AppInitialization
+    , Initialization :> Catch @ (
+    
+        mainViewState = "loading" (*jic*)
+      ; Pause[.001]            
       
-      (*; Check[ ReleaseHold @ loading, loadFailed = True ]*)
-      ; ReleaseHold @ loading
-         (*there was no theApp at the beginning but then dynamic went crazy on window resize/move*)
-         (*moving rhs from theApp from top Which[] fixed the problem...*)
-         (*I wasted to much time for this*)
-      ; theApp = $CellContext`AppPanel[] /. _$CellContext`AppPanel :> (Print[$Context];failedLoadSign)
+      ; CurrentValue[EvaluationNotebook[], {TaggingRules, "Context"}] = $Context
       
-      ; loaded = True  
+      ; ReleaseHold @ loading              
+       
+      ; theApp = $CellContext`AppPanel[] /. _$CellContext`AppPanel :> (
+          mainViewState = "failed"; Throw @ $Failed
+        )
+      
+      ; mainViewState = "ok"  
     
       )         
     ] (*TODO: msg handler for initialization*)
