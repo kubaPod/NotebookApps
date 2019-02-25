@@ -126,6 +126,8 @@ $appNbObject = NotebookPut @ $appNotebook" // StringTemplate // # @ appSourceFil
     
 ; Notebook[
     Cell[BoxData@#, "Code"] & /@ cells
+  , "TrackCellChangeTimes" -> False
+  , PrivateNotebookOptions -> {"FileOutlineCache" -> False}  
   ]
       
 ];
