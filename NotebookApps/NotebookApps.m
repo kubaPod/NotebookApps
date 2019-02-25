@@ -55,7 +55,7 @@ $BuildMonitor = Print;
 (*Apps*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*NewApp*)
 
 
@@ -64,11 +64,15 @@ NewNotebookApp::dirTaken = "`` is not an empty directory, please delete content 
 
 NewNotebookApp[name_]:= NewNotebookApp[name, Directory[]];
 
-NewNotebookApp[name_, dir_]:= Module[{appDir, tag,devNb}
+NewNotebookApp[name_, dir_]:= Module[
+  { appDir, tag
+  , appSourceFile = name <> "Source.wl"
+  , devNb         = name <> ".nb"
+  }
 , Catch[
     appDir = FileNameJoin[{dir, name}]
   ; If[
-      Not @ DirectoryQ @ appDir
+        Not @ DirectoryQ @ appDir
       , CreateDirectory @ appDir
       , If[
         FileNames["*",appDir] =!= {}
@@ -79,14 +83,11 @@ NewNotebookApp[name_, dir_]:= Module[{appDir, tag,devNb}
   ; Internal`WithLocalSettings[
       SetDirectory @ appDir
       
-    , devNb = StringTemplate["``.nb"][name]
-    ; Export[devNb, DevNotebookTemplate[]]
-    ; CreateFile["session.m"]
-    ; CreateFile["methods.m"]
-    ; Export["methods.m", methodsTemplate[], "Text", PageWidth->\[Infinity]]
+    , Export[devNb, DevNotebookTemplate @ appSourceFile ]        
+    ; CreateFile @ appSourceFile
+    ; Export[appSourceFile, methodsTemplate[], "Text", PageWidth->\[Infinity]]
     ; NotebookOpen @ AbsoluteFileName @ devNb
-    ; NotebookOpen @ AbsoluteFileName @ "methods.m"
-    
+    ; NotebookOpen @ AbsoluteFileName @ appSourceFile    
     
     , ResetDirectory[]
     ]
@@ -94,64 +95,81 @@ NewNotebookApp[name_, dir_]:= Module[{appDir, tag,devNb}
   ]
 ];
 
-DevNotebookTemplate[]:=Notebook[
-  Cell[BoxData@#, "Input"] & /@ { 
-  "Needs @ \"NotebookApps`\""
-, "$appNotebook = AppNotebook[
+DevNotebookTemplate[appSourceFile_String]:= Module[{cells}
+, cells = {   
+"Needs @ \"NotebookApps`\"", 
+
+"$appNotebook = AppNotebook[
     \"BuildRoot\" \[Rule] NotebookDirectory[]
   , \"InitializationText\" -> \"Initialization...\"
+  , Initialization :> (
+      
+        GetInjected[\"``\"]    
+      ; Symbol[\"AppInitialization\"][]
+
+    )
   , WindowSize -> {700, 500}
 ];
 
-NotebookPut @ $appNotebook"
+NotebookPut @ $appNotebook" // StringTemplate // # @ appSourceFile &,
 
-, "CDFDeploy[\[IndentingNewLine]  FileNameJoin[{NotebookDirectory[],\"app.cdf\"}]
-, $appNotebook\[IndentingNewLine]]"
-, "SystemOpen @ %"     
-    }  
+"CDFDeploy[\[IndentingNewLine]  FileNameJoin[{NotebookDirectory[],\"app.cdf\"}]
+, $appNotebook\[IndentingNewLine]]",
+
+"SystemOpen @ %"     
+}
+    
+; Notebook[
+    Cell[BoxData@#, "Code"] & /@ cells
+  ]
+      
 ];
 
 methodsTemplate[]:= "
-  (* This is a special file for NotebookApps, its content will be localized within your notebook. *)
+  (* AppPanel and AppInitialization are special names, don't change them. Rest is up to you. 
+     Don't bother with BeginPackage and friends unless you know what you are doing. 
+     NotebookApps makes sure this fill will be read within notebook's local context'
+  *)
+  (* I suggest the following naming convention:
+     $$name        for symbols that represent app state, are meant to be changed etc.
+     $name         for 'static' variables that are not going to change e.g. $fontSize
+     action$name[] for actions working with $$name variables / app state
+     view$name     for view elements that will be affected by interactive manipulations / rewriting                   
+  *)
 
-  (* AppPanel and AppInitialization are special names, don't change them. Rest is up to you. *)
 
-  (* You don't need to use BasicLayout but it is an effort free way to get nice layout. *)
-  (* Alternatively just put a Grid there or whatever.*)
 
 
 
     (*AppPanel name should not be changed*)
-  AppPanel[]:= BasicLayout[
-    headerPanel[]
-  , mainPanel[]
-  , settingsPanel[]
-  , \"SettingsWidth\" -> 300
+  AppPanel[]:= Pane[
+    Column[{
+      headerPanel[]
+    , mainPanel[]
+    }]
+  , FrameMargins -> 15
   ];
 
     (*AppInitialization name should not be changed*)
   AppInitialization[]:= {
-    y = 1;
+    $$y = 1;
   };
 
 
 
 
 
-headerPanel[]:=Pane[\"this is a header, put here a logo or whatever\"
+headerPanel[]:=Pane[
+  Row[{\"this is a header, put here a logo or whatever\", Slider @ Dynamic @ $$y}, Spacer @ 50]
 , {Full, Full}
 , Alignment\[Rule]Left
 ];
 
-mainPanel[]:=Graphics[Line @ {{-1,-1}, Dynamic@{1,y}}
+mainPanel[]:=Graphics[Line @ {{-1,-1}, Dynamic@{1, $$y}}
 ,  PlotRange\[Rule]1
 , Frame \[Rule] True
-, AspectRatio\[Rule]Full
-, ImageSize \[Rule] Full
+, ImageSize \[Rule] 300
 ];
-
-settingsPanel[]:=Slider @ Dynamic @ y;
-
 
 ";
 
@@ -164,20 +182,12 @@ AppNotebook // ClearAll
 
 AppNotebook // Options = {
 
-  "Name" -> ""
-, "BuildRoot" :> Directory[]
-
-, Initialization :> (
-    GetInjected[ "NotebookApps`" ]
-  ; GetInjected[ "methods.m", "Scope" -> {Begin, "`AppNotebook2`"}]
-  ; $CellContext`AppInitialization[]
-  )
-  
-, "InitializationEncoding" -> True  
-  
-, WindowSize -> 1000 {1, 1/GoldenRatio}   
-
-, "InitializationText" -> "Initialization..."
+  "Name"                   -> ""
+, "BuildRoot"              :> Directory[]
+, "InitializationEncoding" -> True    
+, "InitializationText"     -> "Initialization..."
+, Initialization           :> {}  
+, WindowSize               -> 1000 {1, 1/GoldenRatio}   
      
 };
 
@@ -280,7 +290,7 @@ $defaultWaitingPane = Pane[
 
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*PopulateLoading*)
 
 
@@ -335,7 +345,7 @@ EncodeExpression[expr_]:= Module[{file, fileEnc, res}
 ]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*GetInjected / content / read*)
 
 
