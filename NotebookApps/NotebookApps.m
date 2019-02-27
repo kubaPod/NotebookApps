@@ -57,7 +57,7 @@ $BuildMonitor = Print;
 (*Apps*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*NewApp*)
 
 
@@ -233,7 +233,7 @@ AppNotebook[ options:OptionsPattern[{AppNotebook, Notebook}]]:= Internal`WithLoc
 ];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*AppLoadingPanel*)
 
 
@@ -299,7 +299,7 @@ $defaultWaitingPane = Pane[
 
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*PopulateLoading*)
 
 
@@ -358,11 +358,7 @@ EncodeExpression[expr_]:= Module[{file, fileEnc, res}
 ]
 
 
-(* ::Subsection::Closed:: *)
-(*GetInjected / content / read*)
-
-
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*SetInjected*)
 
 
@@ -388,7 +384,7 @@ SIcontent[_, path_String ? FileExistsQ ]:= Compress @ Import @ path;
 SIcontent[_, spec__ ]:= Compress @ MergeNested[
   Fold[
     <|#2->#|>&
-  , <|FileBaseName[#]-> Import[#]|>
+  , <|FileBaseName[#] -> Import[#]|>
   , Rest @ Reverse @ FileNameSplit[#]
   ]& /@ FileNames[spec]
  ]
