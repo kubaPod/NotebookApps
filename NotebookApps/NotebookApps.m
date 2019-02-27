@@ -22,12 +22,14 @@
 
 BeginPackage["NotebookApps`"];
 
-  
+  ClearAll["`*", "`*`*"];
+
   NewNotebookApp;
   AppNotebook;
 
     (*symbolic wrappers*)
   GetInjected;
+  SetInjected;
   AppSession;
   AppNotebook;
 
@@ -40,8 +42,8 @@ BeginPackage["NotebookApps`"];
   BookmarkSessionLoad;
   
   EncodeExpression;
-  
-  
+
+
   ThemeButton;
 
 
@@ -83,11 +85,11 @@ NewNotebookApp[name_, dir_]:= Module[
   ; Internal`WithLocalSettings[
       SetDirectory @ appDir
       
-    , Export[devNb, DevNotebookTemplate @ appSourceFile ]        
+    , Export[devNb, DevNotebookTemplate @ appSourceFile ]
     ; CreateFile @ appSourceFile
     ; Export[appSourceFile, methodsTemplate[], "Text", PageWidth->\[Infinity]]
     ; NotebookOpen @ AbsoluteFileName @ devNb
-    ; NotebookOpen @ AbsoluteFileName @ appSourceFile    
+    ; NotebookOpen @ AbsoluteFileName @ appSourceFile
     
     , ResetDirectory[]
     ]
@@ -96,8 +98,8 @@ NewNotebookApp[name_, dir_]:= Module[
 ];
 
 DevNotebookTemplate[appSourceFile_String]:= Module[{cells}
-, cells = {   
-"Needs @ \"NotebookApps`\"", 
+, cells = {
+"Needs @ \"NotebookApps`\"",
 
 "
 Quiet @ NotebookDelete /@ {$debugNbObject, $appNbObject};
@@ -106,8 +108,8 @@ $appNotebook = AppNotebook[
     \"BuildRoot\" \[Rule] NotebookDirectory[]
   , \"InitializationText\" -> \"Initialization...\"
   , Initialization :> (
-      
-        GetInjected[\"``\"]    
+
+        GetInjected[\"``\"]
       ; Symbol[\"AppInitialization\"][]
 
     )
@@ -121,27 +123,27 @@ $appNbObject = NotebookPut @ $appNotebook" // StringTemplate // # @ appSourceFil
 "CDFDeploy[\[IndentingNewLine]  FileNameJoin[{NotebookDirectory[],\"app.cdf\"}]
 , $appNotebook\[IndentingNewLine]]",
 
-"SystemOpen @ %"     
+"SystemOpen @ %"
 }
-    
+
 ; Notebook[
     Cell[BoxData@#, "Code"] & /@ cells
   , "TrackCellChangeTimes" -> False
-  , PrivateNotebookOptions -> {"FileOutlineCache" -> False}  
+  , PrivateNotebookOptions -> {"FileOutlineCache" -> False}
   ]
-      
+
 ];
 
 methodsTemplate[]:= "
-  (* AppPanel and AppInitialization are special names, don't change them. Rest is up to you. 
-     Don't bother with BeginPackage and friends unless you know what you are doing. 
+  (* AppPanel and AppInitialization are special names, don't change them. Rest is up to you.
+     Don't bother with BeginPackage and friends unless you know what you are doing.
      NotebookApps makes sure this fill will be read within notebook's local context'
   *)
   (* I suggest the following naming convention:
      $$name        for symbols that represent app state, are meant to be changed etc.
      $name         for 'static' variables that are not going to change e.g. $fontSize
      action$name[] for actions working with $$name variables / app state
-     view$name     for view elements that will be affected by interactive manipulations / rewriting                   
+     view$name     for view elements that will be affected by interactive manipulations / rewriting
   *)
 
 
@@ -191,10 +193,10 @@ AppNotebook // Options = {
 
   "Name"                   -> ""
 , "BuildRoot"              :> Directory[]
-, "InitializationEncoding" -> True    
+, "InitializationEncoding" -> True
 , "InitializationText"     -> "Initialization..."
-, Initialization           :> {}  
-, WindowSize               -> 1000 {1, 1/GoldenRatio}   
+, Initialization           :> {}
+, WindowSize               -> 1000 {1, 1/GoldenRatio}
      
 };
 
@@ -238,12 +240,12 @@ AppNotebook[ options:OptionsPattern[{AppNotebook, Notebook}]]:= Internal`WithLoc
 AppLoadingPanel // Options = Options @ AppNotebook;
 
 AppLoadingPanel[options:OptionsPattern[]]:=With[
-  { 
-    failedLoadSign = Style["\[WarningSign]", Blend[{Red,Orange}], 80, ShowStringCharacters->False]  
+  {
+    failedLoadSign = Style["\[WarningSign]", Blend[{Red,Orange}], 80, ShowStringCharacters->False]
   , waitingPane = $defaultWaitingPane @ OptionValue["InitializationText"]
   , loading = (
       PrintTemporary["creating notebook initialization"]
-    ; PopulateLoading[ 
+    ; PopulateLoading[
         OptionValue[Automatic, Automatic, Initialization, Hold],
         OptionValue["InitializationEncoding"]
       ]
@@ -258,25 +260,25 @@ AppLoadingPanel[options:OptionsPattern[]]:=With[
       , "ok"      -> Dynamic[Refresh[theApp, None]]}
     , Dynamic[ mainViewState + 0 ]
     , ImageSize -> Automatic
-    ]  
-        
-    , UnsavedVariables :> {loaded, theApp, mainViewState}  
-    
+    ]
+
+    , UnsavedVariables :> {loaded, theApp, mainViewState}
+
     , SynchronousInitialization->False
     , Initialization :> Catch @ (
-    
+
         mainViewState = "loading" (*jic*)
-      ; Pause[.001]            
+      ; Pause[.001]
       
       ; CurrentValue[EvaluationNotebook[], {TaggingRules, "Context"}] = $Context
       
-      ; ReleaseHold @ loading              
-       
+      ; ReleaseHold @ loading
+
       ; theApp = $CellContext`AppPanel[] /. _$CellContext`AppPanel :> (
           mainViewState = "failed"; Throw @ $Failed
         )
-      
-      ; mainViewState = "ok"  
+
+      ; mainViewState = "ok"
     
       )         
     ] (*TODO: msg handler for initialization*)
@@ -297,7 +299,7 @@ $defaultWaitingPane = Pane[
 
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*PopulateLoading*)
 
 
@@ -315,18 +317,22 @@ PopulateLoading[loadingProcedure:_Hold, encode_:True]:= Catch @ Module[
         }
       , readFunction[content] /; True
       ]
+    , spec_SetInjected :> With[
+        { resources = SIcontent @@ spec, loadFunction = SIfunction @@ spec }
+      , loadFunction[resources] /; True
+      ]
     }
-            
-  ; If[Not @ TrueQ @ encode, Print["not encoded"]; Throw @ temp]
-  
+
+  ; If[Not @ TrueQ @ encode, $BuildMonitor["not encoded"]; Throw @ temp]
+
   ; With[{enc = EncodeExpression @ temp}
     , PrintTemporary["Encoded"]
     ; Hold @ Module[{str = StringToStream @ enc, res}
       , res = ReleaseHold @ Get @ str
       ; Close @ str
-      ; res 
+      ; res
       ]
-    ]       
+    ]
   , Message[PopulateLoading::encErr]; Throw @ $Failed
   ]
 ];
@@ -356,6 +362,45 @@ EncodeExpression[expr_]:= Module[{file, fileEnc, res}
 (*GetInjected / content / read*)
 
 
+(* ::Subsection::Closed:: *)
+(*SetInjected*)
+
+
+SetInjected::usage = "SetInjected[symbolName, spec] is a symbolic representation which AppNotebook replaces with symbol = importedSpec.";
+
+
+SIfunction[ symbolName_String, ___]:= Function[
+  source
+, ToExpression[
+    symbolName
+  , InputForm
+  , Function[symbol, symbol = Uncompress @ source, HoldFirst]
+  ]
+]
+
+
+(*Just imports path*)
+SIcontent[_, path_String ? FileExistsQ ]:= Compress @ Import @ path;
+
+
+
+(*returns <| a \[Rule] <| b \[Rule] <|fileC \[Rule] ..., fileD \[Rule] ...|>, fileE \[Rule] ... |> |> *)
+SIcontent[_, spec__ ]:= Compress @ MergeNested[
+  Fold[
+    <|#2->#|>&
+  , <|FileBaseName[#]-> Import[#]|>
+  , Rest @ Reverse @ FileNameSplit[#]
+  ]& /@ FileNames[spec]
+ ]
+
+
+MergeNested=If[MatchQ[#,{__Association}],Merge[#,#0],Last[#]]&;
+
+
+(* ::Subsection::Closed:: *)
+(*GetInjected*)
+
+
 GetInjected // Options = {
   "Scope" -> None,
   "ContextRules" -> None (* None | All | Auto | "Context`" | {context1 \[Rule] context2}*)
@@ -374,11 +419,11 @@ GIcontent[file_String, ___]:= Module[
 GIreadFunction // Options = Options @ GetInjected;
 
 GIreadFunction[spec_, OptionsPattern[]]:= With[
-  { 
+  {
     baseContextBlock     = BaseContextFunction[ OptionValue @ "Scope"]
   , relativeContextBlock = RelativeContextFunction[spec, OptionValue @ "ContextRules"]
   }
-  
+
 , Function[{source}
   , Module[{stream}
     , Internal`WithLocalSettings[
@@ -387,7 +432,7 @@ GIreadFunction[spec_, OptionsPattern[]]:= With[
       , Close @ stream
       ]
     ]
-  ]  
+  ]
 
 ];
 
@@ -406,23 +451,23 @@ BaseContextFunction[{start: (Begin | BeginPackage ), context_String}]:= With[
 , Function[
     expr
   , start[context]; expr; end[]
-  , HoldAll 
+  , HoldAll
   ]
-]; 
+];
 
 
 
 (*TODO: All, specific context, context rules*)
 
-RelativeContextFunction::usage = 
+RelativeContextFunction::usage =
  "RelativeContextFunction[context, method] return a function " <>
  "that makes BeginPackage[context] behave like BeginPackage[`context]";
- 
+
 RelativeContextFunction::invArgs = "Can't use ``";
 
 RelativeContextFunction[args___]:= (Message[RelativeContextFunction::invArgs, {args}];$Failed);
 
-RelativeContextFunction[spec_, None] = Identity; 
+RelativeContextFunction[spec_, None] = Identity;
 
 RelativeContextFunction[spec:_String ? ( StringEndsQ["`"] ), Automatic] := Function[
   expr
@@ -430,10 +475,10 @@ RelativeContextFunction[spec:_String ? ( StringEndsQ["`"] ), Automatic] := Funct
     , BeginPackage // Unprotect
     ; BeginPackage[spec]:=BeginPackage[ "`" <> spec ]
     ; BeginPackage // Protect
-    ; expr  
+    ; expr
   ]
 , HoldAll
-]    
+]
 
 
 (* ::Section::Closed:: *)
