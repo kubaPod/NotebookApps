@@ -4,9 +4,9 @@ Mini framework for easier creation of standalone or not CDFs/Notebooks.
 
 - [x] source/dependencies parsed in notebook's local context
 
-- [ ] injection of source files / dependencies (See `GetInjected`)
+- [ ] injection of source files / dependencies 
 
-  - [x] single file packages and plain text WL code
+  - [x] single file packages and plain text WL code (`GetInjected[path_|context_]`)
   - [ ] multi file packages (*)
   - [ ] contexts
 
@@ -14,14 +14,14 @@ Mini framework for easier creation of standalone or not CDFs/Notebooks.
 
 - [ ] localization of WL packages (e.g. ``MyPackage` ``  pushed to ``NotebookXYZ`MyPackage` ``)
 
-  - [x] single file packages
+  - [x] single file packages (e.g. ``GetInjected["MyPackage`", "ContextRules" -> Automatic]``)
   - [ ] multi file packages
   - [ ] contexts
 
 - [ ] injection of resources (See `SetInjected`)
 
-  - [x] given symbol initialized with given file's imported content
-  - [x] given symbol initialized with nested association which resembles given directory structure of resources
+  - [x] given symbol initialized with given file's imported content (`SetInjected["symbolName", path]`)
+  - [x] given symbol initialized with nested association which resembles given directory structure of resources (`SetInjected["symbolName", specForFileNames__]`)
   - [ ] add custom import rules
 
 ## Installation
