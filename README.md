@@ -1,6 +1,28 @@
 # NotebookApps
 
-Mini framework for easy creation of standalone or not CDFs/Notebooks, managing simple dependencies, session bookmarking etc.
+Mini framework for easier creation of standalone or not CDFs/Notebooks.
+
+- [x] source/dependencies parsed in notebook's local context
+
+- [ ] injection of source files / dependencies (See `GetInjected`)
+
+  - [x] single file packages and plain text WL code
+  - [ ] multifile packages (*)
+  - [ ] contexts
+
+  (*) (can be done loading set of single files if package's setup allows)
+
+- [ ] localization of WL packages (``MyPackage` `` pushed to ``NotebookXYZ`MyPackage` ``)
+
+  - [x] single file packages
+  - [ ] multifile packages
+  - [ ] contexts
+
+- [ ] injection of resources (See `SetInjected`)
+
+  - [x] given symbol initialized with given file's imported content
+  - [x] given symbol initialized with nested association which resembles given directory structure of resources
+  - [ ] add custom import rules
 
 ## Installation
  
