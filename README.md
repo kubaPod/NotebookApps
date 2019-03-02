@@ -57,4 +57,4 @@ and then:
 
  ## Documentation
 
- For more details see [Wiki:Quick-Tutorial](https://github.com/kubaPod/NotebookApps/wiki/Quick-tutorial)
+ For more details see [Wiki](https://github.com/kubaPod/NotebookApps/wiki/New-App)
