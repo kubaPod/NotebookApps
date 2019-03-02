@@ -7,15 +7,15 @@ Mini framework for easier creation of standalone or not CDFs/Notebooks.
 - [ ] injection of source files / dependencies (See `GetInjected`)
 
   - [x] single file packages and plain text WL code
-  - [ ] multifile packages (*)
+  - [ ] multi file packages (*)
   - [ ] contexts
 
-  (*) (can be done loading set of single files if package's setup allows)
+  (*) can be done by loading a set of single files, if package's setup allows
 
-- [ ] localization of WL packages (``MyPackage` `` pushed to ``NotebookXYZ`MyPackage` ``)
+- [ ] localization of WL packages (e.g. ``MyPackage` ``  pushed to ``NotebookXYZ`MyPackage` ``)
 
   - [x] single file packages
-  - [ ] multifile packages
+  - [ ] multi file packages
   - [ ] contexts
 
 - [ ] injection of resources (See `SetInjected`)
@@ -51,10 +51,10 @@ and then:
     
  Two files will be created
  
- - appName.nb will be your project notebook to build app / test etc 
-   
- 
+ - appName.nb will be your project notebook to build app / test etc
  - appNameSource.wl will be your main file with gui and other definitions. 
  
-   This file will be **read** withing generated notebook within a local notebook's context 
- so you don't need to worry about contexts.
+
+ ## Documentation
+
+ For more details see [Wiki:Quick-Tutorial](https://github.com/kubaPod/NotebookApps/wiki/Quick-tutorial)
