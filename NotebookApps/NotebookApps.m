@@ -318,14 +318,19 @@ PopulateLoading[loadingProcedure:_Hold, encode_:True]:= Catch @ Module[
       , readFunction[content] /; True
       ]
     , spec_SetInjected :> With[
-        { resources = SIcontent @@ spec, loadFunction = SIfunction @@ spec }
+        { resources = SIcontent @@ spec
+        , loadFunction = SIfunction @@ spec
+        }
       , loadFunction[resources] /; True
       ]
     }
 
   ; If[Not @ TrueQ @ encode, $BuildMonitor["not encoded"]; Throw @ temp]
 
-  ; With[{enc = EncodeExpression @ temp}
+  ; With[
+      { enc = EncodeExpression @ temp
+      ,
+      }
     , PrintTemporary["Encoded"]
     ; Hold @ Module[{str = StringToStream @ enc, res}
       , res = ReleaseHold @ Get @ str
@@ -337,6 +342,44 @@ PopulateLoading[loadingProcedure:_Hold, encode_:True]:= Catch @ Module[
   ]
 ];
 
+
+(*Internal`InheritedBlock[{$ContextPath},
+  WithLocalizedContexts[
+    LocalizeNewContexts@
+      ToExpression["BeginPackage[\"MyPackage`\"];EndPackage[];"];
+    {Needs@"MyPackage`",
+      MemberQ[$ContextPath, $Context <> "`MyPackage`"]}
+  ]
+]*)
+
+WithLocalizedContexts = Function[
+    expr
+  , Block[
+        {$LocalizedContexts = {}}
+      , Internal`InheritedBlock[
+            {Needs}
+          , Needs // Unprotect
+          ; Needs[context_String /; MemberQ[$LocalizedContexts, context]] := Needs["`" <> context]
+          ; Needs // Protect
+          ; expr
+        ]
+    ]
+  , HoldFirst
+];
+
+LocalizeNewContexts = Function[
+    expr
+  , Internal`InheritedBlock[
+        {BeginPackage}
+      , BeginPackage // Unprotect
+      ; BeginPackage[context_String?(Not @* StringStartsQ["`"])] := (
+            AppendTo[$LocalizedContexts, context]; BeginPackage["`" <> context]
+        )
+      ; BeginPackage // Protect
+      ; expr
+    ]
+  , HoldFirst
+];
 
 (* ::Subsection::Closed:: *)
 (*EncodeExpression*)
@@ -419,6 +462,7 @@ GIcontent[file_String, ___]:= Module[
 , $BuildMonitor["compressing: ", file, " - ", File[path]]
 ; Compress @ Import[path, "Text"]  
 ];
+
 
 
 GIreadFunction // Options = Options @ GetInjected;
