@@ -37,14 +37,6 @@ VerificationTest[
 
 
 
-Block[{Internal`$ContextMarks = False}
-, ToBoxes@NotebookApps`Private`PopulateLoading[
-  Hold@GetInjected["NotebookApps`","ContextRules" -> Automatic],
-  False
-]/. s_String ? (StringLength[#] > 100 &):>"(**)"
-]
-
-
 VerificationTest[
   Block[{Internal`$ContextMarks = False}
       , RawBoxes @ ToBoxes @ NotebookApps`Private`PopulateLoading[
@@ -67,7 +59,7 @@ VerificationTest[
 ]
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*BaseContextFunction*)
 
 
@@ -87,7 +79,7 @@ VerificationTest[
 ]
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*RelativeContextFunction*)
 
 
@@ -119,12 +111,16 @@ VerificationTest[
 (*WithLocalizedContexts*)
 
 
-Internal`InheritedBlock[
+VerificationTest[
+  Internal`InheritedBlock[
     {$ContextPath, $Packages}
   , NotebookApps`Private`WithLocalizedContexts[
         NotebookApps`Private`LocalizeNewContexts[Automatic] @ ToExpression @ "BeginPackage[\"MyPackage`\"];EndPackage[];"
       ; Needs@"MyPackage`"; MemberQ[$ContextPath, $Context <> "MyPackage`"]
     ]
 ]  
+, True
+, TestID -> "Internal`InheritedBlock[{$ContextPath,$Packages},NotebookApps`Pr..."
+]
 
 

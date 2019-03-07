@@ -99,7 +99,7 @@ NewNotebookApp[name_, dir_]:= Module[
     , ResetDirectory[]
     ]
   , tag
-  ] \[Infinity]
+  ]
 ];
 
 DevNotebookTemplate[appSourceFile_String]:= Module[{cells}
@@ -362,15 +362,12 @@ PopulateLoading[loadingProcedure:_Hold, encode_:True]:= Catch @ Module[
 
 WithLocalizedContexts = Function[
     expr
-  , Block[
-        {$LocalPackages = {}, $NotebookContext = $Context}
-      , Internal`InheritedBlock[
-            {Needs}
-          , Needs // Unprotect
-          ; Needs[context_String /; MemberQ[$LocalPackages, context] ] := Needs[ $NotebookContext <> context ]
-          ; Needs // Protect
-          ; expr
-        ]
+  , Internal`InheritedBlock[
+        {Needs, $LocalPackages = {}, $NotebookContext = $Context}
+      , Needs // Unprotect
+      ; Needs[context_String /; MemberQ[$LocalPackages, context] ] := Needs[ $NotebookContext <> context ]
+      ; Needs // Protect
+      ; expr
     ]
   , HoldFirst
 ];
