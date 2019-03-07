@@ -324,11 +324,12 @@ PopulateLoading[loadingProcedure:_Hold, encode_:True]:= Catch @ Module[
       ]
     }
 
+  ; temp = temp /. Hold[proc_] :> With[{ foo = WithLocalizedContexts}, Hold[foo @ proc]]
+
   ; If[Not @ TrueQ @ encode, $BuildMonitor["not encoded"]; Throw @ temp]
 
   ; With[
       { enc = EncodeExpression @ temp
-      ,
       }
     , PrintTemporary["Encoded"]
     ; Hold @ Module[{str = StringToStream @ enc, res}
@@ -357,10 +358,11 @@ WithLocalizedContexts = Function[
   , HoldFirst
 ];
 
-LocalizeNewContexts = Function[
+LocalizeNewContexts[Automatic] = Function[
     expr
   , Internal`InheritedBlock[
         {BeginPackage}
+
       , BeginPackage // Unprotect
       ; BeginPackage[context_String?(Not @* StringStartsQ["`"])] := (
             AppendTo[$LocalPackages, context]; BeginPackage["`" <> context]
@@ -370,6 +372,10 @@ LocalizeNewContexts = Function[
     ]
   , HoldFirst
 ];
+
+LocalizeNewContexts[_] = Identity;
+
+
 
 (* ::Subsection::Closed:: *)
 (*EncodeExpression*)
@@ -441,7 +447,7 @@ MergeNested=If[MatchQ[#,{__Association}],Merge[#,#0],Last[#]]&;
 
 GetInjected // Options = {
   "Scope" -> None,
-  "ContextRules" -> None (* None | All | Auto | "Context`" | {context1 -> context2}*)
+  "ContextRules" -> Automatic
 };
 
 GetInjected::usage = "GetInjected[source, opts] is a symbolic wrapper which AppNotebook will replace with injected source";
@@ -459,15 +465,15 @@ GIreadFunction // Options = Options @ GetInjected;
 
 GIreadFunction[spec_, OptionsPattern[]]:= With[
   {
-    baseContextBlock     = BaseContextFunction[ OptionValue @ "Scope"]
-  , relativeContextBlock = RelativeContextFunction[spec, OptionValue @ "ContextRules"]
+    baseContextBlock     = BaseContextFunction @ OptionValue @ "Scope"
+  , contextHandlers      = LocalizeNewContexts @ OptionValue @ "ContextRules"
   }
 
 , Function[{source}
   , Module[{stream}
     , Internal`WithLocalSettings[
         stream = StringToStream @ Uncompress @ source
-      , relativeContextBlock @ baseContextBlock @ Get @ stream
+      , contextHandlers @ baseContextBlock @ Get @ stream
       , Close @ stream
       ]
     ]
@@ -475,7 +481,7 @@ GIreadFunction[spec_, OptionsPattern[]]:= With[
 
 ];
 
-
+(*just legacy code I guess*)
 BaseContextFunction::usage = "BaseContextFunction[spec] returns a function to that creates context envirnment for a source file";
 
 BaseContextFunction::invArgs = "Can't use ``";
@@ -789,6 +795,3 @@ ThemeButton[textColor_:GrayLevel[.9], bgCol_:GrayLevel[.1]]:= With[
 
 End[];
 EndPackage[];
-
-\[Degree]   Degree
-\[Infinity] Infinity
