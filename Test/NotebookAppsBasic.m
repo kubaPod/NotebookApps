@@ -95,3 +95,14 @@ VerificationTest[
 , "Global`MyPackage`"
 , TestID -> "RelativeContextFunction[\"MyPackage`\", Automatic]"
 ]
+
+
+Internal`InheritedBlock[
+    {$ContextPath, $Packages}
+  , NotebookApps`Private`WithLocalizedContexts[
+        NotebookApps`Private`LocalizeNewContexts @ ToExpression @ "BeginPackage[\"MyPackage`\"];EndPackage[];"
+      ; { Needs@"MyPackage`", MemberQ[$ContextPath, $Context <> "`MyPackage`"]}
+    ]
+]  
+
+

@@ -46,6 +46,8 @@ BeginPackage["NotebookApps`"];
 
   ThemeButton;
 
+  $LocalPackages;
+
 
 Begin["`Private`"];
 
@@ -252,20 +254,18 @@ AppLoadingPanel[options:OptionsPattern[]]:=With[
     )
   }
 , DynamicModule[{ mainViewState = "loading", loaded = False, loadFailed = False, theApp }
-    , 
-    
-    PaneSelector[
-      { "loading" -> waitingPane
-      , "failed"  -> failedLoadSign
-      , "ok"      -> Dynamic[Refresh[theApp, None]]}
-    , Dynamic[ mainViewState + 0 ]
-    , ImageSize -> Automatic
-    ]
 
-    , UnsavedVariables :> {loaded, theApp, mainViewState}
+    , PaneSelector[
+        { "loading" -> waitingPane
+        , "failed"  -> failedLoadSign
+        , "ok"      -> Dynamic[Refresh[theApp, None]]}
+      , Dynamic[ mainViewState + 0 ]
+      , ImageSize -> Automatic
+      ]
 
-    , SynchronousInitialization->False
-    , Initialization :> Catch @ (
+    , UnsavedVariables          :> {loaded, theApp, mainViewState}
+    , SynchronousInitialization -> False
+    , Initialization            :> Catch @ (
 
         mainViewState = "loading" (*jic*)
       ; Pause[.001]
@@ -279,7 +279,6 @@ AppLoadingPanel[options:OptionsPattern[]]:=With[
         )
 
       ; mainViewState = "ok"
-    
       )         
     ] (*TODO: msg handler for initialization*)
 ];
@@ -343,23 +342,14 @@ PopulateLoading[loadingProcedure:_Hold, encode_:True]:= Catch @ Module[
 ];
 
 
-(*Internal`InheritedBlock[{$ContextPath},
-  WithLocalizedContexts[
-    LocalizeNewContexts@
-      ToExpression["BeginPackage[\"MyPackage`\"];EndPackage[];"];
-    {Needs@"MyPackage`",
-      MemberQ[$ContextPath, $Context <> "`MyPackage`"]}
-  ]
-]*)
-
 WithLocalizedContexts = Function[
     expr
   , Block[
-        {$LocalizedContexts = {}}
+        {$LocalPackages = {}}
       , Internal`InheritedBlock[
             {Needs}
           , Needs // Unprotect
-          ; Needs[context_String /; MemberQ[$LocalizedContexts, context]] := Needs["`" <> context]
+          ; Needs[context_String /; MemberQ[$LocalPackages, context]] := Needs["`" <> context]
           ; Needs // Protect
           ; expr
         ]
@@ -373,7 +363,7 @@ LocalizeNewContexts = Function[
         {BeginPackage}
       , BeginPackage // Unprotect
       ; BeginPackage[context_String?(Not @* StringStartsQ["`"])] := (
-            AppendTo[$LocalizedContexts, context]; BeginPackage["`" <> context]
+            AppendTo[$LocalPackages, context]; BeginPackage["`" <> context]
         )
       ; BeginPackage // Protect
       ; expr
