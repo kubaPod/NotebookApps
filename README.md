@@ -4,20 +4,17 @@ Mini framework for easy creation of standalone or not CDFs/Notebooks, managing s
 
 ## Installation
  
-### Manual
+### Manual - GitHub release
  
-   Go to 'releases' tab and download appropriate .paclet file.
-    
+   Go to 'releases' tab and download appropriate .paclet file. 
    Run `PacletInstall @ path/to/the.paclet` file
    
-### Using ``MPM` ``
+### Automatic - ``MPM` ``
    
 ``MPM` `` is a small utility I wrote to install GitHub hosted paclets. If you don't have ``MPM` `` yet, run:
    
     Import["https://raw.githubusercontent.com/kubapod/mpm/master/install.m"]
-   
-and then:
-   
+      (* and then:*)   
     Needs @ "MPM`"    
     MPM`MPMInstall["kubapod", "notebookapps"]
     
