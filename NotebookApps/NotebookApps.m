@@ -192,8 +192,6 @@ mainPanel[]:=Graphics[Line @ {{-1,-1}, Dynamic@{1, $$y}}
 (*AppNotebook*)
 
 
-AppNotebook // ClearAll
-
 AppNotebook // Options = {
 
   "Name"                   -> ""

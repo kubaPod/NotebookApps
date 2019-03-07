@@ -67,7 +67,7 @@ VerificationTest[
 ]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*BaseContextFunction*)
 
 
@@ -87,7 +87,7 @@ VerificationTest[
 ]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*RelativeContextFunction*)
 
 
@@ -113,6 +113,10 @@ VerificationTest[
 , "Global`MyPackage`"
 , TestID -> "RelativeContextFunction[\"MyPackage`\", Automatic]"
 ]
+
+
+(* ::Section:: *)
+(*WithLocalizedContexts*)
 
 
 Internal`InheritedBlock[
