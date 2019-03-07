@@ -39,13 +39,23 @@ VerificationTest[
 
 VerificationTest[
   Block[{Internal`$ContextMarks = False}
-, RawBoxes@ToBoxes@NotebookApps`Private`PopulateLoading[
-  Hold@GetInjected["NotebookApps`","ContextRules" -> Automatic],
-  False
-]/. s_String ? (StringLength[#] > 100 &):>"(**)"
-]
-, RawBoxes[RowBox[{"Hold", "[", RowBox[{RowBox[{"Function", "[", RowBox[{RowBox[{"{", "source$", "}"}], ",", RowBox[{"Module", "[", RowBox[{RowBox[{"{", "stream$", "}"}], ",", RowBox[{"WithLocalSettings", "[", RowBox[{RowBox[{"stream$", "=", RowBox[{"StringToStream", "[", RowBox[{"Uncompress", "[", "source$", "]"}], "]"}]}], ",", RowBox[{RowBox[{"Function", "[", RowBox[{"expr$", ",", RowBox[{"InheritedBlock", "[", RowBox[{RowBox[{"{", "BeginPackage", "}"}], ",", RowBox[{RowBox[{"Unprotect", "[", "BeginPackage", "]"}], ";", RowBox[{RowBox[{"BeginPackage", "[", "\"NotebookApps`\"", "]"}], ":=", RowBox[{"BeginPackage", "[", RowBox[{"\"`\"", "<>", "\"NotebookApps`\""}], "]"}]}], ";", RowBox[{"Protect", "[", "BeginPackage", "]"}], ";", "expr$"}]}], "]"}], ",", "HoldAll"}], "]"}], "[", RowBox[{"Identity", "[", RowBox[{"Get", "[", "stream$", "]"}], "]"}], "]"}], ",", RowBox[{"Close", "[", "stream$", "]"}]}], "]"}]}], "]"}]}], "]"}], "[", "(**)", "]"}], "]"}]]
+      , RawBoxes @ ToBoxes @ NotebookApps`Private`PopulateLoading[
+            Hold @ GetInjected["NotebookApps`","ContextRules" -> Automatic]
+          , False
+        ]/. s_String ? (StringLength[#] > 100 &):>"(**)"
+    ]
+, RawBoxes[RowBox[{"Hold", "[", RowBox[{RowBox[{"Function", "[", RowBox[{"expr", ",", RowBox[{"Block", "[", RowBox[{RowBox[{"{", RowBox[{"$LocalPackages", "=", RowBox[{"{", "}"}]}], "}"}], ",", RowBox[{"InheritedBlock", "[", RowBox[{RowBox[{"{", "Needs", "}"}], ",", RowBox[{RowBox[{"Unprotect", "[", "Needs", "]"}], ";", RowBox[{RowBox[{"Needs", "[", RowBox[{"context_String", "/;", RowBox[{"MemberQ", "[", RowBox[{"$LocalPackages", ",", "context"}], "]"}]}], "]"}], ":=", RowBox[{"Needs", "[", RowBox[{"\"`\"", "<>", "context"}], "]"}]}], ";", RowBox[{"Protect", "[", "Needs", "]"}], ";", "expr"}]}], "]"}]}], "]"}], ",", "HoldFirst"}], "]"}], "[", RowBox[{RowBox[{"Function", "[", RowBox[{RowBox[{"{", "source$", "}"}], ",", RowBox[{"Module", "[", RowBox[{RowBox[{"{", "stream$", "}"}], ",", RowBox[{"WithLocalSettings", "[", RowBox[{RowBox[{"stream$", "=", RowBox[{"StringToStream", "[", RowBox[{"Uncompress", "[", "source$", "]"}], "]"}]}], ",", RowBox[{RowBox[{"Function", "[", RowBox[{"expr", ",", RowBox[{"InheritedBlock", "[", RowBox[{RowBox[{"{", "BeginPackage", "}"}], ",", RowBox[{RowBox[{"Unprotect", "[", "BeginPackage", "]"}], ";", RowBox[{RowBox[{"BeginPackage", "[", RowBox[{"context_String", "?", RowBox[{"(", RowBox[{"Not", "@*", RowBox[{"StringStartsQ", "[", "\"`\"", "]"}]}], ")"}]}], "]"}], ":=", RowBox[{"(", RowBox[{RowBox[{"AppendTo", "[", RowBox[{"$LocalPackages", ",", "context"}], "]"}], ";", RowBox[{"BeginPackage", "[", RowBox[{"\"`\"", "<>", "context"}], "]"}]}], ")"}]}], ";", RowBox[{"Protect", "[", "BeginPackage", "]"}], ";", "expr"}]}], "]"}], ",", "HoldFirst"}], "]"}], "[", RowBox[{"Identity", "[", RowBox[{"Get", "[", "stream$", "]"}], "]"}], "]"}], ",", RowBox[{"Close", "[", "stream$", "]"}]}], "]"}]}], "]"}]}], "]"}], "[", "(**)", "]"}], "]"}], "]"}]]
 , TestID -> "PopulateLoading @ GetInjected[package, ContextRules -> Automatic]"
+]
+
+
+VerificationTest[
+  NotebookApps`Private`PopulateLoading[
+      Hold @ GetInjected["NotebookApps`","ContextRules" -> Automatic]
+    , False
+  ]
+, NotebookApps`Private`PopulateLoading[ Hold @ GetInjected["NotebookApps`"] , False ]
+, TestID -> "ContextRules Automatic by default"
 ]
 
 
@@ -95,3 +105,22 @@ VerificationTest[
 , "Global`MyPackage`"
 , TestID -> "RelativeContextFunction[\"MyPackage`\", Automatic]"
 ]
+
+
+(* ::Section:: *)
+(*WithLocalizedContexts*)
+
+
+VerificationTest[
+  Internal`InheritedBlock[
+    {$ContextPath, $Packages}
+  , NotebookApps`Private`WithLocalizedContexts[
+        NotebookApps`Private`LocalizeNewContexts[Automatic] @ ToExpression @ "BeginPackage[\"MyPackage`\"];EndPackage[];"
+      ; Needs@"MyPackage`"; MemberQ[$ContextPath, $Context <> "MyPackage`"]
+    ]
+]  
+, True
+, TestID -> "Internal`InheritedBlock[{$ContextPath,$Packages},NotebookApps`Pr..."
+]
+
+

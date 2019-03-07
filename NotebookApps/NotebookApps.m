@@ -46,6 +46,11 @@ BeginPackage["NotebookApps`"];
 
   ThemeButton;
 
+  $LocalPackages::usage = "$LocalPackages stores packages that were pushed down to $NotebookContext. " <>
+    "NotebookApps`$LocalPackages is available during app initialization.";
+  $NotebookContext::usage = "$NotebookContext contains notebook's $Context. NotebooksApps`$NotebookContext is "<>
+    "available during app initialization";
+
 
 Begin["`Private`"];
 
@@ -94,7 +99,7 @@ NewNotebookApp[name_, dir_]:= Module[
     , ResetDirectory[]
     ]
   , tag
-  ] \[Infinity]
+  ]
 ];
 
 DevNotebookTemplate[appSourceFile_String]:= Module[{cells}
@@ -187,8 +192,6 @@ mainPanel[]:=Graphics[Line @ {{-1,-1}, Dynamic@{1, $$y}}
 (*AppNotebook*)
 
 
-AppNotebook // ClearAll
-
 AppNotebook // Options = {
 
   "Name"                   -> ""
@@ -252,20 +255,18 @@ AppLoadingPanel[options:OptionsPattern[]]:=With[
     )
   }
 , DynamicModule[{ mainViewState = "loading", loaded = False, loadFailed = False, theApp }
-    , 
-    
-    PaneSelector[
-      { "loading" -> waitingPane
-      , "failed"  -> failedLoadSign
-      , "ok"      -> Dynamic[Refresh[theApp, None]]}
-    , Dynamic[ mainViewState + 0 ]
-    , ImageSize -> Automatic
-    ]
 
-    , UnsavedVariables :> {loaded, theApp, mainViewState}
+    , PaneSelector[
+        { "loading" -> waitingPane
+        , "failed"  -> failedLoadSign
+        , "ok"      -> Dynamic[Refresh[theApp, None]]}
+      , Dynamic[ mainViewState + 0 ]
+      , ImageSize -> Automatic
+      ]
 
-    , SynchronousInitialization->False
-    , Initialization :> Catch @ (
+    , UnsavedVariables          :> {loaded, theApp, mainViewState}
+    , SynchronousInitialization -> False
+    , Initialization            :> Catch @ (
 
         mainViewState = "loading" (*jic*)
       ; Pause[.001]
@@ -279,7 +280,6 @@ AppLoadingPanel[options:OptionsPattern[]]:=With[
         )
 
       ; mainViewState = "ok"
-    
       )         
     ] (*TODO: msg handler for initialization*)
 ];
@@ -318,14 +318,20 @@ PopulateLoading[loadingProcedure:_Hold, encode_:True]:= Catch @ Module[
       , readFunction[content] /; True
       ]
     , spec_SetInjected :> With[
-        { resources = SIcontent @@ spec, loadFunction = SIfunction @@ spec }
+        { resources = SIcontent @@ spec
+        , loadFunction = SIfunction @@ spec
+        }
       , loadFunction[resources] /; True
       ]
     }
 
+  ; temp = temp /. Hold[proc_] :> With[{ foo = WithLocalizedContexts}, Hold[foo @ proc]]
+
   ; If[Not @ TrueQ @ encode, $BuildMonitor["not encoded"]; Throw @ temp]
 
-  ; With[{enc = EncodeExpression @ temp}
+  ; With[
+      { enc = EncodeExpression @ temp
+      }
     , PrintTemporary["Encoded"]
     ; Hold @ Module[{str = StringToStream @ enc, res}
       , res = ReleaseHold @ Get @ str
@@ -336,6 +342,56 @@ PopulateLoading[loadingProcedure:_Hold, encode_:True]:= Catch @ Module[
   , Message[PopulateLoading::encErr]; Throw @ $Failed
   ]
 ];
+
+
+(*what do we want from those two following functions?
+
+ WithLocalizedContext should provide an environment to be able to keep track of localized contexts so that
+ Needs can call them instead of their non localized progenitors. It wraps whole initialization.
+
+ LocalizeNewContexts should make BeginPackage[context] perform BeginPackage[notebookContext`context] if
+ appropriate ContextRules are used.
+
+ We need to keep track of $NotebookContext because $Context, "`"` and friends are affected by all
+ BeginPackage / Package stuff that is going on when loading dependencies.
+
+ We need to be able to call only context that were localized. Not every Needs will call embedded package, it
+ is perfectly fine to call Needs @ GeneralUtilities` and it should call system resources. So we need to keep
+ track of what we localized.
+ *)
+
+WithLocalizedContexts = Function[
+    expr
+  , Internal`InheritedBlock[
+        {Needs, $LocalPackages = {}, $NotebookContext = $Context}
+      , Needs // Unprotect
+      ; Needs[context_String /; MemberQ[$LocalPackages, context] ] := Needs[ $NotebookContext <> context ]
+      ; Needs // Protect
+      ; expr
+    ]
+  , HoldFirst
+];
+
+
+
+LocalizeNewContexts[Automatic] = Function[
+    expr
+  , Internal`InheritedBlock[
+        {BeginPackage}
+
+      , BeginPackage // Unprotect
+      ; BeginPackage[context_String /; Not @ StringStartsQ[$NotebookContext] @ context ] := (
+          AppendTo[$LocalPackages, context]
+        ; BeginPackage[$NotebookContext <> context]
+        )
+      ; BeginPackage // Protect
+      ; expr
+    ]
+  , HoldFirst
+];
+
+LocalizeNewContexts[_] = Identity;
+
 
 
 (* ::Subsection::Closed:: *)
@@ -408,7 +464,7 @@ MergeNested=If[MatchQ[#,{__Association}],Merge[#,#0],Last[#]]&;
 
 GetInjected // Options = {
   "Scope" -> None,
-  "ContextRules" -> None (* None | All | Auto | "Context`" | {context1 -> context2}*)
+  "ContextRules" -> Automatic
 };
 
 GetInjected::usage = "GetInjected[source, opts] is a symbolic wrapper which AppNotebook will replace with injected source";
@@ -421,19 +477,20 @@ GIcontent[file_String, ___]:= Module[
 ];
 
 
+
 GIreadFunction // Options = Options @ GetInjected;
 
 GIreadFunction[spec_, OptionsPattern[]]:= With[
   {
-    baseContextBlock     = BaseContextFunction[ OptionValue @ "Scope"]
-  , relativeContextBlock = RelativeContextFunction[spec, OptionValue @ "ContextRules"]
+    baseContextBlock     = BaseContextFunction @ OptionValue @ "Scope"
+  , contextHandlers      = LocalizeNewContexts @ OptionValue @ "ContextRules"
   }
 
 , Function[{source}
   , Module[{stream}
     , Internal`WithLocalSettings[
         stream = StringToStream @ Uncompress @ source
-      , relativeContextBlock @ baseContextBlock @ Get @ stream
+      , contextHandlers @ baseContextBlock @ Get @ stream
       , Close @ stream
       ]
     ]
@@ -441,7 +498,7 @@ GIreadFunction[spec_, OptionsPattern[]]:= With[
 
 ];
 
-
+(*just legacy code I guess*)
 BaseContextFunction::usage = "BaseContextFunction[spec] returns a function to that creates context envirnment for a source file";
 
 BaseContextFunction::invArgs = "Can't use ``";
@@ -755,6 +812,3 @@ ThemeButton[textColor_:GrayLevel[.9], bgCol_:GrayLevel[.1]]:= With[
 
 End[];
 EndPackage[];
-
-\[Degree]   Degree
-\[Infinity] Infinity
