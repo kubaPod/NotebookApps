@@ -94,7 +94,7 @@ NewNotebookApp[name_, dir_]:= Module[
     , ResetDirectory[]
     ]
   , tag
-  ]
+  ] \[Infinity]
 ];
 
 DevNotebookTemplate[appSourceFile_String]:= Module[{cells}
@@ -105,7 +105,7 @@ DevNotebookTemplate[appSourceFile_String]:= Module[{cells}
 Quiet @ NotebookDelete /@ {$debugNbObject, $appNbObject};
 
 $appNotebook = AppNotebook[
-    \"BuildRoot\" \[Rule] NotebookDirectory[]
+    \"BuildRoot\" -> NotebookDirectory[]
   , \"InitializationText\" -> \"Initialization...\"
   , Initialization :> (
 
@@ -171,13 +171,13 @@ methodsTemplate[]:= "
 headerPanel[]:=Pane[
   Row[{\"this is a header, put here a logo or whatever\", Slider @ Dynamic @ $$y}, Spacer @ 50]
 , {Full, Full}
-, Alignment\[Rule]Left
+, Alignment->Left
 ];
 
 mainPanel[]:=Graphics[Line @ {{-1,-1}, Dynamic@{1, $$y}}
-,  PlotRange\[Rule]1
-, Frame \[Rule] True
-, ImageSize \[Rule] 300
+,  PlotRange->1
+, Frame -> True
+, ImageSize -> 300
 ];
 
 ";
@@ -376,18 +376,27 @@ SIfunction[ symbolName_String, ___]:= Function[
 
 
 (*Just imports path*)
-SIcontent[_, path_String ? FileExistsQ ]:= Compress @ Import @ path;
+SIcontent[_String, path_String ? FileExistsQ ]:= Compress @ Import @ path;
 
 
 
-(*returns <| a \[Rule] <| b \[Rule] <|fileC \[Rule] ..., fileD \[Rule] ...|>, fileE \[Rule] ... |> |> *)
-SIcontent[_, spec__ ]:= Compress @ MergeNested[
-  Fold[
-    <|#2->#|>&
-  , <|FileBaseName[#] -> Import[#]|>
-  , Rest @ Reverse @ FileNameSplit[#]
-  ]& /@ FileNames[spec]
- ]
+(*returns <| a -> <| b -> <|fileC -> ..., fileD -> ...|>, fileE -> ... |> |> *)
+SIcontent[_String, spec__ ]:= Module[{temp}
+
+, temp = FileNames[spec]
+
+; temp = Function[
+    file
+  , $BuildMonitor["importing resource: ", File[file] ]
+  ; Fold[
+      <|#2 -> #|>&
+    , <|FileBaseName[file] -> Import[file]|>
+    , Rest @ Reverse @ FileNameSplit @ file
+    ]
+  ] /@ temp
+
+; Compress @ MergeNested @ temp
+]
 
 
 MergeNested=If[MatchQ[#,{__Association}],Merge[#,#0],Last[#]]&;
@@ -399,7 +408,7 @@ MergeNested=If[MatchQ[#,{__Association}],Merge[#,#0],Last[#]]&;
 
 GetInjected // Options = {
   "Scope" -> None,
-  "ContextRules" -> None (* None | All | Auto | "Context`" | {context1 \[Rule] context2}*)
+  "ContextRules" -> None (* None | All | Auto | "Context`" | {context1 -> context2}*)
 };
 
 GetInjected::usage = "GetInjected[source, opts] is a symbolic wrapper which AppNotebook will replace with injected source";
@@ -747,3 +756,5 @@ ThemeButton[textColor_:GrayLevel[.9], bgCol_:GrayLevel[.1]]:= With[
 End[];
 EndPackage[];
 
+\[Degree]   Degree
+\[Infinity] Infinity

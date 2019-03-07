@@ -1,6 +1,28 @@
 # NotebookApps
 
-Mini framework for easy creation of standalone or not CDFs/Notebooks, managing simple dependencies, session bookmarking etc.
+Mini framework for easier creation of standalone or not CDFs/Notebooks.
+
+- [x] source/dependencies parsed in notebook's local context
+
+- [ ] injection of source files / dependencies 
+
+  - [x] single file packages and plain text WL code (`GetInjected[path_|context_]`)
+  - [ ] multi file packages (*)
+  - [ ] contexts
+
+  (*) can be done by loading a set of single files, if package's setup allows
+
+- [ ] localization of WL packages (e.g. ``MyPackage` ``  pushed to ``NotebookXYZ`MyPackage` ``)
+
+  - [x] single file packages (e.g. ``GetInjected["MyPackage`", "ContextRules" -> Automatic]``)
+  - [ ] multi file packages
+  - [ ] contexts
+
+- [ ] injection of resources (See `SetInjected`)
+
+  - [x] given symbol initialized with given file's imported content (`SetInjected["symbolName", path]`)
+  - [x] given symbol initialized with nested association which resembles given directory structure of resources (`SetInjected["symbolName", specForFileNames__]`)
+  - [ ] add custom import rules
 
 ## Installation
  
@@ -26,10 +48,10 @@ Mini framework for easy creation of standalone or not CDFs/Notebooks, managing s
     
  Two files will be created
  
- - appName.nb will be your project notebook to build app / test etc 
-   
- 
+ - appName.nb will be your project notebook to build app / test etc
  - appNameSource.wl will be your main file with gui and other definitions. 
  
-   This file will be **read** withing generated notebook within a local notebook's context 
- so you don't need to worry about contexts.
+
+ ## Documentation
+
+ For more details see [Wiki](https://github.com/kubaPod/NotebookApps/wiki/New-App)

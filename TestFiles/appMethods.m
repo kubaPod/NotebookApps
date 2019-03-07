@@ -32,8 +32,8 @@ plotPanel[]:= Graphics[
   , ImageSize -> Full
   , ImagePadding->33
   , Background->White
-(*, Frame \[Rule] True
-, FrameTicks\[Rule]All*)
+(*, Frame -> True
+, FrameTicks->All*)
   , FrameStyle -> Dynamic @ Directive[Thick, $frameColor]
 ];
 
