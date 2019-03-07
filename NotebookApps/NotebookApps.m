@@ -46,7 +46,10 @@ BeginPackage["NotebookApps`"];
 
   ThemeButton;
 
-  $LocalPackages;
+  $LocalPackages::usage = "$LocalPackages stores packages that were pushed down to $NotebookContext. " <>
+    "NotebookApps`$LocalPackages is available during app initialization.";
+  $NotebookContext::usage = "$NotebookContext contains notebook's $Context. NotebooksApps`$NotebookContext is "<>
+    "available during app initialization";
 
 
 Begin["`Private`"];
@@ -343,14 +346,30 @@ PopulateLoading[loadingProcedure:_Hold, encode_:True]:= Catch @ Module[
 ];
 
 
+(*what do we want from those two following functions?
+
+ WithLocalizedContext should provide an environment to be able to keep track of localized contexts so that
+ Needs can call them instead of their non localized progenitors. It wraps whole initialization.
+
+ LocalizeNewContexts should make BeginPackage[context] perform BeginPackage[notebookContext`context] if
+ appropriate ContextRules are used.
+
+ We need to keep track of $NotebookContext because $Context, "`"` and friends are affected by all
+ BeginPackage / Package stuff that is going on when loading dependencies.
+
+ We need to be able to call only context that were localized. Not every Needs will call embedded package, it
+ is perfectly fine to call Needs @ GeneralUtilities` and it should call system resources. So we need to keep
+ track of what we localized.
+ *)
+
 WithLocalizedContexts = Function[
     expr
   , Block[
-        {$LocalPackages = {}}
+        {$LocalPackages = {}, $NotebookContext = $Context}
       , Internal`InheritedBlock[
             {Needs}
           , Needs // Unprotect
-          ; Needs[context_String /; MemberQ[$LocalPackages, context]] := Needs["`" <> context]
+          ; Needs[context_String /; MemberQ[$LocalPackages, context] ] := Needs[ $NotebookContext <> context ]
           ; Needs // Protect
           ; expr
         ]
@@ -358,14 +377,17 @@ WithLocalizedContexts = Function[
   , HoldFirst
 ];
 
+
+
 LocalizeNewContexts[Automatic] = Function[
     expr
   , Internal`InheritedBlock[
         {BeginPackage}
 
       , BeginPackage // Unprotect
-      ; BeginPackage[context_String?(Not @* StringStartsQ["`"])] := (
-            AppendTo[$LocalPackages, context]; BeginPackage["`" <> context]
+      ; BeginPackage[context_String /; Not @ StringStartsQ[$NotebookContext] @ context ] := (
+          AppendTo[$LocalPackages, context]
+        ; BeginPackage[$NotebookContext <> context]
         )
       ; BeginPackage // Protect
       ; expr
